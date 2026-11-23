@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.header_backup/
+sim/results/
+.pytest_cache/
+.DS_Store
+.vscode
+settings.json
+try_guard.py
+try.sandbox.py
+Try/

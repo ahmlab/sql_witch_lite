@@ -1,0 +1,17 @@
+# Asterisk Slime: the first 4 rows cost 13 MP; with 20 MP its own SELECT * overflows and drains it to 0.
+foe_id,name,element,power,mp_cost,kind
+1,Goo Spit,Nature,4,2,attack
+1,Sticky Slap,Nature,6,3,attack
+1,Bubble Pop,Tide,5,3,attack
+1,Ooze Splash,Nature,7,5,attack
+1,Slime Bolt,Nature,9,4,attack
+1,Acid Drip,Nature,11,5,attack
+1,Gel Shield,Nature,10,4,ward
+1,Mega Splat,Nature,16,8,attack
+# Sir Wherewell: one spell per filter, so each of his precise WHERE queries returns exactly one row.
+2,Tidal Edge,Tide,14,4,attack
+2,Undertow Thrust,Tide,24,7,attack
+2,Verdict of the Deep,Tide,36,12,attack
+2,Ward of Relevance,Arcane,0,6,relevance
+2,Shield Wall,Tide,14,5,ward
+2,Dispelling Cut,Tide,0,4,dispel
