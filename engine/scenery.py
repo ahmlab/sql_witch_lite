@@ -385,3 +385,57 @@ def draw_knight(canvas: pygame.Surface, centre: tuple[float, float], t: int, fla
             canvas.set_at((render.snap(cx + math.cos(angle) * 19),
                            render.snap(cy + math.sin(angle) * 23)),
                           render.AQUA if i % 4 else render.LILAC)
+
+
+# ------------------------------------------------------------------ the Nested Lich
+
+def draw_crypt(canvas: pygame.Surface, t: int, ground_y: int = 60) -> None:
+    """Placeholder crypt: dark stone wall with arches, candles and a stone floor."""
+    canvas.fill(render.NIGHT)
+    wall_top = 0
+    for x in range(0, 320, 40):                                   # arches in the wall
+        pygame.draw.rect(canvas, render.DUSK, (x + 6, wall_top + 10, 28, ground_y - 10))
+        pygame.draw.ellipse(canvas, render.DUSK, (x + 6, wall_top + 2, 28, 18))
+        pygame.draw.rect(canvas, render.INK, (x + 10, wall_top + 16, 20, ground_y - 16))
+        pygame.draw.ellipse(canvas, render.INK, (x + 10, wall_top + 8, 20, 16))
+    for x in (30, 150, 270):                                      # candles flicker
+        pygame.draw.rect(canvas, render.PARCHMENT, (x, ground_y - 14, 3, 8))
+        flame = render.GOLD if (t // 130 + x) % 3 else render.BUTTER
+        pygame.draw.polygon(canvas, flame, [(x - 1, ground_y - 14), (x + 4, ground_y - 14),
+                                            (x + 1, ground_y - 21 - (t // 100 + x) % 2)])
+    pygame.draw.rect(canvas, render.SLATE, (0, ground_y, 320, 180 - ground_y))   # floor
+    for y in range(ground_y + 6, 180, 8):
+        pygame.draw.line(canvas, render.INK, (0, y), (320, y))
+        for x in range((y // 8 % 2) * 12, 320, 24):
+            pygame.draw.line(canvas, render.INK, (x, y - 7), (x, y))
+
+
+def draw_lich(canvas, centre, t, flash, fainted, relevance, element, ward):
+    """The Nested Lich: a skeleton in a purple robe with a staff. Nothing floats around him.
+    Only his eyes and the staff orb change colour with his shell (his element)."""
+    cx, cy = render.snap(centre[0]), render.snap(centre[1])
+    shell = render.ELEMENT_COLOURS.get(element, render.GREY)
+    if element == "Shadow":
+        shell = render.LAVENDER                       # Shadow's own colour is too dark to see
+    if fainted:
+        pygame.draw.rect(canvas, render.LAVENDER, (cx - 14, cy + 12, 28, 6))
+        pygame.draw.ellipse(canvas, render.WHITE, (cx - 5, cy + 8, 10, 8))
+        return
+    pygame.draw.ellipse(canvas, render.INK, (cx - 10, cy + 18, 20, 4))           # shadow
+    robe, trim, bone = render.LAVENDER, render.LILAC, render.WHITE
+    if flash:
+        robe = trim = bone = render.WHITE
+    pygame.draw.polygon(canvas, robe, [(cx - 8, cy - 4), (cx + 8, cy - 4),
+                                       (cx + 12, cy + 18), (cx - 12, cy + 18)])  # robe
+    pygame.draw.rect(canvas, trim, (cx - 12, cy + 16, 24, 2))                    # hem
+    pygame.draw.rect(canvas, bone, (cx - 5, cy - 16, 10, 11))                    # skull
+    pygame.draw.rect(canvas, render.INK, (cx - 4, cy - 12, 3, 3))                # eyes
+    pygame.draw.rect(canvas, render.INK, (cx + 1, cy - 12, 3, 3))
+    if not flash:
+        pygame.draw.rect(canvas, shell, (cx - 3, cy - 11, 1, 1))
+        pygame.draw.rect(canvas, shell, (cx + 2, cy - 11, 1, 1))
+    pygame.draw.rect(canvas, render.INK, (cx - 2, cy - 7, 4, 1))                 # teeth
+    pygame.draw.polygon(canvas, robe, [(cx - 7, cy - 17), (cx + 7, cy - 17),
+                                       (cx, cy - 26)])                           # hood
+    pygame.draw.line(canvas, render.BARK, (cx + 14, cy - 18), (cx + 14, cy + 18))  # staff
+    pygame.draw.circle(canvas, shell, (cx + 14, cy - 20), 3)                     # orb

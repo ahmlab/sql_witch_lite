@@ -62,6 +62,7 @@ class CastMemory:
     super_effective: bool            # did any spell hit the foe for x2?
     overflow: int                    # castable rows lost past the page
     scry: bool
+    targets: tuple[str, ...] = ()    # names of the foes her spells hit (the Twins read this)
 
 
 @dataclass
@@ -75,9 +76,15 @@ class BattleState:
     scries_used: int = 0              # free looks taken in the current turn
     foe_book: list[str] = field(default_factory=list)  # every query the foe has cast
     ada_casts: list[CastMemory] = field(default_factory=list)  # what Ada has done so far
+    # The Twin Archivists (ai/pair.py): a second foe that shares the first one's mana pool, and the
+    # world object that re-rolls their weaknesses and moves their bodies. None for every other fight.
+    twin: Combatant | None = None
+    pair: object | None = None
 
     def side(self, who: str) -> Combatant:
-        """'ada' or 'foe' -> the combatant. Callers pass the side, never the name."""
+        """'ada', 'foe' or 'twin' -> the combatant. Callers pass the side, never the name."""
+        if who == "twin":
+            return self.twin
         return self.ada if who == "ada" else self.foe
 
     def other(self, who: str) -> Combatant:
@@ -168,6 +175,8 @@ def first_mover(state: BattleState, rng: random.Random) -> str:
 def start_turn(state: BattleState, who: str) -> None:
     """Exhaustion lasts exactly one enemy turn: it wears off when the tired side acts again."""
     state.side(who).exhausted = False
+    if who == "foe" and state.twin is not None:
+        state.twin.exhausted = False
     state.scries_used = 0
 
 
@@ -175,14 +184,16 @@ def winner(state: BattleState) -> str | None:
     # Ada falling counts first: hitting yourself with your own JOIN is still a loss.
     if not state.ada.alive:
         return "foe"
-    if not state.foe.alive:
+    if not state.foe.alive and (state.twin is None or not state.twin.alive):
         return "ada"
     return None
 
 
 def end_of_round(state: BattleState) -> str | None:
     """Regenerate MP, let wards decay, advance the round and report a winner if any."""
-    for fighter in (state.ada, state.foe):
+    for fighter in (state.ada, state.foe, state.twin):
+        if fighter is None:
+            continue
         fighter.mp = min(fighter.max_mp, fighter.mp + fighter.mp_regen)
         # Wards halve each round, so a ward is a short-term shield, not a permanent wall.
         fighter.ward //= 2

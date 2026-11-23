@@ -12,7 +12,7 @@ from typing import Any, Callable, Mapping, Protocol
 from magic.rules import BattleState
 
 # Every kind a foe intent can have. Scry is when you try to see in the future
-KINDS = frozenset({"attack", "heal", "ward", "relevance", "dispel", "scry"})
+KINDS = frozenset({"attack", "heal", "ward", "relevance", "dispel", "scry", "restore"})
 
 
 @dataclass(frozen=True)

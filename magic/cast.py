@@ -196,6 +196,9 @@ SELF_KINDS = ("heal", "ward", "relevance")
 
 def _default_target(kind: str, caster: str) -> str:
     # Attacks and dispels go to the other side; heals and wards go to the caster (clause 3).
+    # A restore reaches for the caster's partner (the Twin Archivists).
+    if kind == "restore":
+        return "twin" if caster == "foe" else caster
     return caster if kind in SELF_KINDS else ("foe" if caster == "ada" else "ada")
 
 
@@ -230,6 +233,12 @@ def _apply_spell(plan: _Row, me: Combatant, target: Combatant, chart: dict,
         report.casts.append(Cast(plan.index, spell.name, target.name, "ward", amount=amount,
                                  element=spell.element))
         report.events.append(("ward", plan.index, spell.name, target.name, amount))
+    elif spell.kind == "restore":
+        revived = not target.alive            # a fallen twin gets up again at `power` HP
+        amount = rules.heal(target, spell.power)
+        report.casts.append(Cast(plan.index, spell.name, target.name, "restore", amount=amount,
+                                 element=spell.element))
+        report.events.append(("restore", plan.index, spell.name, target.name, amount, revived))
     elif spell.kind == "relevance":
         target.relevance = True
         report.casts.append(Cast(plan.index, spell.name, target.name, "relevance",
@@ -278,6 +287,8 @@ def resolve(conn, state: BattleState, sql: str, caster: str, rng: random.Random,
 
     book, items = spellbook(conn, state, caster), satchel(conn, caster)
     names = {state.ada.name: "ada", state.foe.name: "foe"}
+    if state.twin is not None:
+        names[state.twin.name] = "twin"
     plans = [p for i, row in enumerate(rows) if (p := _read_row(i, row, book, items, names))]
 
     if not plans:
@@ -336,6 +347,8 @@ def _cast(conn, state, caster, plans, page, chart, rng, report) -> None:
         if me.mp == 0:
             # Its own overflow drained it dry: wide open until it acts again (design doc 5.3).
             me.exhausted = True
+            if caster == "foe" and state.twin is not None:
+                state.twin.exhausted = True       # the twins share one pool, so one tired pair
             report.events.append(("exhausted", me.name))
 
 
@@ -361,6 +374,8 @@ def sync_state(conn, state: BattleState) -> None:
                  (ada.hp, ada.mp, ada.ward, ada.name))
     conn.execute("UPDATE enemies SET hp = ?, mp = ? WHERE id = ?",
                  (foe.hp, foe.mp, state.foe_id))
+    if state.pair is not None:
+        state.pair.sync(conn, state)
     conn.commit()
 
 

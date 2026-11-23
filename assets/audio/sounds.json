@@ -4,6 +4,8 @@
     "battle": {"files": ["theme_glade_jig.wav", "theme_filter_keep.wav", "theme_estampie.wav", "theme_lantern.wav", "theme_saltarello.wav"], "volume": 0.75},
     "slime": {"files": ["theme_glade_jig.wav", "theme_estampie.wav", "theme_lantern.wav"], "volume": 0.75},
     "knight": {"files": ["theme_filter_keep.wav", "theme_saltarello.wav", "theme_estampie.wav"], "volume": 0.75},
+    "lich": {"files": ["theme_estampie.wav", "theme_lantern.wav", "theme_saltarello.wav"], "volume": 0.75},
+    "twins": {"files": ["theme_lantern.wav", "theme_estampie.wav"], "volume": 0.75},
     "dummy": {"file": "theme_lantern.wav", "volume": 0.75},
     "danger": {"file": "danger_last_candle.wav", "volume": 0.75},
     "classic_slime": {"file": "battle_theme.wav", "volume": 0.45},

@@ -19,6 +19,17 @@ from magic.guard import Miscast
 
 Out = Callable[[str], None]
 
+LICH_INTRO = """\
+The Sunken Crypt. A skeleton in a robe floats between the candles: the NESTED LICH.
+His body is inside a robe, his robe is inside a shell, and his shell is inside another shell.
+He changes shell every round, so his element and weakness change too: look again each turn.
+He never casts without a query inside his query. Watch his book: SUBQUERY will glow.
+
+  Look at him first:  SELECT * FROM enemies
+  A query inside a query:  ... WHERE element = (SELECT weakness FROM enemies WHERE id = 6)
+  Commands:  :help  :why  :schema  :quit
+"""
+
 KNIGHT_INTRO = """\
 The Filter Keep. A knight in blue armour bars the gate: SIR WHEREWELL, Knight of the Filter.
 His Ward of Relevance stops every spell that is not super-effective against him.
@@ -26,6 +37,16 @@ Find his weakness first, then watch his book: he never casts without WHERE.
 
   Scry him first:  SELECT * FROM enemies
   Commands:  :help  :why  :schema  :quit
+"""
+
+TWIN_INTRO = """\
+The Archive of Twins. Two scholars share one desk and one mind: ARCHIVIST QUILL and ARCHIVIST INK.
+They share one mana pool. If one of them falls, the other restores it, so both must fall
+in the SAME query. Their weaknesses are re-dealt every round.
+Watch how they write their own queries: that is how you aim a spell at a named target.
+
+  Look at them:  SELECT * FROM enemies
+  Commands:  :help  :why  :map  :schema  :quit
 """
 
 INTRO = """\
@@ -58,12 +79,18 @@ def bar(value: int, maximum: int, width: int = 10) -> str:
 
 
 def status(battle: Battle) -> list[str]:
-    ada, foe = battle.state.ada, battle.state.foe
+    ada, foe, twin = battle.state.ada, battle.state.foe, battle.state.twin
     runes = ", ".join(sorted(ada.runes)) or "none yet"
     tired = lambda c: "  EXHAUSTED" if c.exhausted else ""
+    pair = []
+    if twin is not None:       # the Twin Archivists: two bodies, one shared mana pool
+        pair = [f"  {twin.name:<15} HP {twin.hp:>3}/{twin.max_hp:<3} [{bar(twin.hp, twin.max_hp)}]"
+                f"  (shared MP pool)  element {twin.element}, weak to {twin.weakness}"]
     return [
         f"  {foe.name:<15} HP {foe.hp:>3}/{foe.max_hp:<3} [{bar(foe.hp, foe.max_hp)}]"
-        f"  MP {foe.mp:>2}/{foe.max_mp}{tired(foe)}",
+        f"  MP {foe.mp:>2}/{foe.max_mp}{tired(foe)}"
+        + (f"  element {foe.element}, weak to {foe.weakness}" if twin is not None else ""),
+        *pair,
         f"  {ada.name:<15} HP {ada.hp:>3}/{ada.max_hp:<3} [{bar(ada.hp, ada.max_hp)}]"
         f"  MP {ada.mp:>2}/{ada.max_mp}  ward {ada.ward}{tired(ada)}",
         f"  Ada's runes: {runes}",
@@ -133,6 +160,10 @@ def narrate(report: CastReport) -> list[str]:
             lines.append(f"  {event[2]} bounces off the Ward of Relevance: not super-effective!")
         elif kind == "shatter":
             lines.append(f"  The Ward of Relevance shatters! Every spell can reach {event[1]} now.")
+        elif kind == "restore":
+            _, _, spell, target, amount, revived = event
+            lines.append(f"  {spell} on {target}: {'back on their feet with' if revived else 'heals'}"
+                         f" {amount} HP.")
         elif kind == "relevance":
             lines.append(f"  {event[3]} raises the Ward of Relevance.")
         elif kind == "dispel":
@@ -153,6 +184,10 @@ def show_foe_turn(turn: FoeTurn, battle: Battle, out: Out) -> None:
     out(f"  > {turn.sql}")
     for line in page_lines(turn.report) + narrate(turn.report):
         out(line)
+    if battle.state.pair is not None:
+        out("")
+        for line in battle.state.pair.render(battle.state):
+            out(line)
     if turn.invitation:
         out("")
         out(f"  *** The word {turn.invitation} glows in the guardian's book. Ada copies the rune: "
@@ -185,6 +220,8 @@ def play(battle: Battle, read: Callable[[str], str], out: Out) -> str | None:
             gained = battle.last_round.mp_gained
             out(f"\n-- end of round {battle.last_round.turn}: Ada +{gained['ada']} MP, "
                 f"{battle.state.foe.name} +{gained['foe']} MP --")
+            if battle.guardian.round_hook is not None:      # the Lich puts on a new shell
+                out(f"   A new shell! {battle.state.foe.name} is now {battle.state.foe.element}.")
             battle.last_round = None
         if battle.state.turn != shown_round:
             shown_round = battle.state.turn
@@ -212,6 +249,10 @@ def play(battle: Battle, read: Callable[[str], str], out: Out) -> str | None:
             continue
         if sql == ":why":
             show_reasoning(battle, out, reasoning)
+            continue
+        if sql == ":map" and battle.state.pair is not None:
+            for line in battle.state.pair.render(battle.state):
+                out(line)
             continue
         if sql == ":schema":
             show_schema(battle, out)
@@ -247,9 +288,11 @@ def main(argv: list[str] | None = None, read: Callable[[str], str] = input,
     args = parser.parse_args(argv)
     seed = args.seed if args.seed is not None else int(time.time())
     battle = Battle(seed=seed, guardian=args.foe)
-    region = "the Filter Keep" if args.foe == "knight" else "the Tutorial Glade"
-    out(f"SQL WITCH - {region}   (seed {seed})\n")
-    out((KNIGHT_INTRO if args.foe == "knight" else INTRO).format(rows=PAGE_ROWS))
+    regions = {"knight": "the Filter Keep", "twins": "the Archive of Twins",
+               "lich": "the Sunken Crypt"}
+    intros = {"knight": KNIGHT_INTRO, "twins": TWIN_INTRO, "lich": LICH_INTRO}
+    out(f"SQL WITCH - {regions.get(args.foe, 'the Tutorial Glade')}   (seed {seed})\n")
+    out(intros.get(args.foe, INTRO).format(rows=PAGE_ROWS))
     play(battle, read, out)
     return 0
 

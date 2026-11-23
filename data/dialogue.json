@@ -42,5 +42,37 @@
     "Ada's HP hits zero. The Knight lowers his blade.",
     "Grimoire: Spells that are not super-effective bounce off. Filter for his weakness."
   ],
+  "twins_intro": [
+    {"scene": "archive", "book": true, "speaker": "", "text": "The Archive of Twins. Two scholars share one desk, one spell book and one mana pool."},
+    {"scene": "archive", "book": true, "twins": true, "speaker": "Archivist Quill", "text": "Welcome, witch. I am Quill, and this is my brother Ink. We are bound by a key."},
+    {"scene": "archive", "book": true, "twins": true, "speaker": "Archivist Ink", "text": "If Quill falls, I raise him again. If I fall, he raises me. Strike one of us and it is wasted."},
+    {"scene": "archive", "book": true, "twins": true, "speaker": "Ada", "text": "So I have to hit both of you at once? With one spell?"},
+    {"scene": "archive", "book": true, "twins": true, "speaker": "Grimoire", "text": "With one query. Look at them first: SELECT * FROM enemies. Their weakness changes every round. Then watch how they write their own queries: a JOIN puts a name beside every spell."}
+  ],
+  "twins_victory": [
+    "Quill and Ink fall together, and the key between them snaps.",
+    "Ada: JOIN. One row for each, and every spell knew its target."
+  ],
+  "twins_defeat": [
+    "Quill gets up. Ink gets up. The chain glows.",
+    "Ada: Hit one and the other restores it. I need to reach both."
+  ],
+  "lich_intro": [
+    {"scene": "crypt", "book": true, "speaker": "Grimoire", "text": "The twins are down, witch, and JOIN is yours. But the last guardian hides his weakness inside another layer. Today you learn to ask a question inside a question."},
+    {"scene": "crypt", "book": true, "speaker": "", "text": "The Sunken Crypt. A cold place where every shelf holds a book inside another book. The candles burn blue. Something is floating in the dark."},
+    {"scene": "crypt", "book": true, "lich": true, "sound": "ward_up", "speaker": "Nested Lich", "text": "Welcome, little witch. My body is inside a robe, my robe is inside a shell, and my shell is inside another shell. Try to find me in there."},
+    {"scene": "crypt", "book": true, "lich": true, "speaker": "Nested Lich", "text": "I change my shell every round, and my weakness changes with it. What you read about me a minute ago is already old news."},
+    {"scene": "crypt", "book": true, "lich": true, "speaker": "Ada", "text": "So I have to ask what he is weak to AND cast the spell, in one go? Can I put a query inside another query?"},
+    {"scene": "crypt", "book": true, "lich": true, "speaker": "Grimoire", "text": "You can! A SELECT inside brackets runs first, like a small question for the big one. He never casts without one. Watch his book and the rune will glow."},
+    {"scene": "crypt", "book": true, "lich": true, "speaker": "Nested Lich", "text": "ENOUGH TALK. LAYER UP!"}
+  ],
+  "lich_victory": [
+    "The Nested Lich cracks open, shell after shell.",
+    "Ada: A query inside a query. That was not so scary."
+  ],
+  "lich_defeat": [
+    "Ada's HP hits zero. The Lich closes his last shell.",
+    "Grimoire: His weakness changes every round. Ask the table instead of remembering it."
+  ],
   "end_of_slice": "End of the vertical slice. Thank you for playing!"
 }

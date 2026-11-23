@@ -207,6 +207,9 @@ def next_scene(game: "Game", key: str) -> Scene:
         # Imported here: the tutorial scene is built on BattleScene, defined in this module.
         from engine.tutorial_scene import TutorialScene
         return TutorialScene(game)
+    if key == "twins":                         # two foes: its own scene (engine/twin_scene.py)
+        from engine.twin_scene import TwinScene
+        return TwinScene(game, key)
     return BattleScene(game, key)
 
 
@@ -311,9 +314,23 @@ class DialogueScene(Scene):
             scenery.draw_office(canvas, self.time, self.drowsy, progress)
         elif name == "void":
             scenery.draw_void(canvas, self.time - self.void_since)
-        elif name in ("glade", "keep"):
+        elif name == "archive":
+            from engine.twin_scene import draw_archive, draw_twin
+            draw_archive(canvas, self.time, ground_y=110)
+            draw_ada(canvas, ADA_STANDING)
+            if self.book_born is not None and self.line.get("book"):
+                speaking = (self.line["speaker"] == "Grimoire"
+                            and self._shown_chars() < len(self.line["text"]))
+                scenery.draw_book(canvas, (130, 64), self.time, self.time - self.book_born,
+                                  speaking, shadow=render.SLATE)
+            if self.line.get("twins"):
+                draw_twin(canvas, (230, 88), self.time, False, False, "quill", False, "Fire")
+                draw_twin(canvas, (276, 94), self.time, False, False, "ink", False, "Tide")
+        elif name in ("glade", "keep", "crypt"):
             if name == "glade":
                 draw_backdrop(canvas, ground_y=110)
+            elif name == "crypt":
+                scenery.draw_crypt(canvas, self.time, ground_y=110)
             else:
                 scenery.draw_keep(canvas, self.time, ground_y=110)
             draw_ada(canvas, ADA_STANDING)            # full length, in front of the book
@@ -328,6 +345,8 @@ class DialogueScene(Scene):
                 draw_slime(canvas, (262, 96), self.time, False, False, False)
             if self.line.get("knight"):
                 scenery.draw_knight(canvas, (252, 92), self.time, False, False, True, False)
+            if self.line.get("lich"):
+                scenery.draw_lich(canvas, (252, 88), self.time, False, False, True, "Shadow", 0)
         else:
             canvas.fill(render.INK)
 
@@ -387,7 +406,8 @@ KEY_REPEAT_INTERVAL = 35     # ms between repeats (about 28 per second)
 ADA_AT = (24, 58)                                   # where bolts and numbers start/land
 ADA_FEET = (42, 100)                                # battle: on the grass, above the Grimoire
 ADA_STANDING = (60, 114)                            # story scenes: standing on the grass
-HOME = {"slime": (250, 50), "knight": (252, 46), "dummy": (266, 54)}   # each foe's post
+HOME = {"slime": (250, 50), "knight": (252, 46), "lich": (250, 42), "dummy": (266, 54),
+        "twins": (256, 40)}   # each foe's post
 FRONT = (182, 56)                                   # the striking spot, closer to Ada
 ARENA = pygame.Rect(176, 36, 122, 30)               # where a guardian may walk (clear of panels)
 ADA_BODY = (ADA_AT[0] + 18, ADA_AT[1] + 22)
@@ -431,8 +451,10 @@ class BattleScene(Scene):
         self.reasoning: dict = {}
         self.glow: tuple[str, int] | None = None
         self.shown_relevance = self.battle.state.foe.relevance
+        self.shown_element = self.battle.state.foe.element    # the Lich's shell colour
         self.idle = 0
         self.rounds_told = set()
+        self.told_element = self.battle.state.foe.element
         self.fx = fx.Effects(game.vfx)          # sparks and lightning: looks only
         self.streak = fx.Streak()
         self.word_glow: tuple[pygame.Rect, int] | None = None
@@ -593,6 +615,24 @@ class BattleScene(Scene):
             self.rounds_told.add(end.turn)
             self.say(f"Round {end.turn} ends: +{end.mp_gained['ada']} MP", 700, self._sync_shown,
                      *(("mp_up",) if end.mp_gained["ada"] else ()))
+            self._tell_new_shell()
+
+    def _tell_new_shell(self) -> None:
+        """The Lich changes shell after every round: tell Ada, and forget the old weakness."""
+        foe = self.battle.state.foe
+        if self.battle.guardian.round_hook is None or foe.element == self.told_element:
+            return
+        self.told_element = foe.element
+        element = foe.element
+
+        def effect():
+            self.shown_element = element
+            self.editor.known_weakness = None        # what she read is old news now
+            self.fx.burst(*self.foe_xy(), count=14, speed=60,
+                          colours=(render.ELEMENT_COLOURS.get(element, render.LILAC),
+                                   render.LILAC, render.WHITE))
+        self.say(f"A new shell! {foe.name.split()[-1]} is now {element}. Look again!", 1100,
+                 effect, "ward_up")
 
     def _sync_shown(self) -> None:
         state = self.battle.state
@@ -841,6 +881,10 @@ class BattleScene(Scene):
             scenery.draw_keep(canvas, self.time)
             scenery.draw_knight(canvas, self.foe_xy(), self.time, flash, fainted,
                                 self.shown_relevance, self.body.velocity.length() > 5)
+        elif self.key == "lich":
+            scenery.draw_crypt(canvas, self.time)
+            scenery.draw_lich(canvas, self.foe_xy(), self.time, flash, fainted,
+                              self.shown_relevance, self.shown_element, state.foe.ward)
         else:
             draw_backdrop(canvas)
             home = HOME[self.key]
@@ -941,7 +985,7 @@ class BattleScene(Scene):
         render.panel(canvas, box)
         f.draw(canvas, foe.name.upper(), (box.x + 4, box.y + 3), render.INK)
         if self.key in ORDER:                      # the training dummy has no level
-            f.draw(canvas, f"Lv{ORDER.index(self.key) + 1}", (box.right - 16, box.y + 3),
+            f.draw(canvas, f"Lv{GUARDIANS[self.key].level}", (box.right - 16, box.y + 3),
                    render.SLATE)
         f.draw(canvas, "HP", (box.x + 4, box.y + 11), render.AMBER)
         hp = round(self.bars["foe"][0])           # the gliding bar: its colour changes as it drops
@@ -1020,7 +1064,7 @@ class ResultScene(Scene):
         elif is_confirm_key(event):
             self.game.seed += 1                      # a new, still reproducible battle
             if not self.won:                         # try the same guardian again
-                self.game.switch(BattleScene(self.game, self.key))
+                self.game.switch(next_scene(self.game, self.key))
                 return
             # Runes are kept after a victory, and a defeated guardian always grants its own
             # (design doc 2.4: "each region's guardian grants the keyword"), even if Ada won
