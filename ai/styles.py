@@ -77,3 +77,33 @@ def render_knight(intent: Intent, state: BattleState, turn: int) -> str:
         return f"SELECT name, hp, mp FROM enemies WHERE id = {foe_id}"
     return (f"SELECT name FROM foe_spells WHERE foe_id = {foe_id} "
             f"AND {KNIGHT_FILTERS[intent.action]}")
+
+
+# The Nested Lich
+
+LICH_RUNES = {"WHERE", "SUBQUERY"}      # he writes a WHERE with a query inside it
+LICH_SIGNATURE = "SUBQUERY"             # the rune the Invitation hands to Ada
+
+# Every query has another SELECT inside the brackets (a subquery), so his very first cast
+# is the Invitation. Each one still returns exactly one row of his book. The battle's
+# foe_spells table only holds the guardian of the fight, so no foe_id is needed here (and
+# the queries stay short enough for the foe's book on the screen).
+LICH_PICKS = {
+    # the weakest attack, the strongest attack under 30, the strongest attack of all
+    "strike":   "power = (SELECT MIN(power) FROM foe_spells WHERE power > 0)",
+    "heavy":    "power = (SELECT MAX(power) FROM foe_spells WHERE power < 30)",
+    "finisher": "power = (SELECT MAX(power) FROM foe_spells)",
+    # the other spells: look the name up by its kind
+    "veil":     "name = (SELECT name FROM foe_spells WHERE kind = 'relevance')",
+    "bone":     "name = (SELECT name FROM foe_spells WHERE kind = 'ward')",
+    "siphon":   "name = (SELECT name FROM foe_spells WHERE kind = 'heal')",
+}
+
+
+def render_lich(intent: Intent, state: BattleState, turn: int) -> str:
+    """The Lich never casts without a subquery. When he rests he only looks at his own row
+    (also with a subquery), so even a resting turn teaches SUBQUERY."""
+    if intent.action not in LICH_PICKS:
+        return (f"SELECT name, hp FROM enemies WHERE id = "
+                f"(SELECT MAX(id) FROM enemies WHERE id = {state.foe_id})")
+    return "SELECT name FROM foe_spells WHERE " + LICH_PICKS[intent.action]

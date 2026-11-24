@@ -15,3 +15,17 @@ foe_id,name,element,power,mp_cost,kind
 2,Ward of Relevance,Arcane,0,6,relevance
 2,Shield Wall,Tide,14,5,ward
 2,Dispelling Cut,Tide,0,4,dispel
+# The Twin Archivists (foe_id 4): one shared spell book and one shared mana pool. Their elements and
+# weaknesses are re-rolled every round (ai/pair.py). Arcane hits Ada (Arcane) for exactly x1.
+4,Paper Cut,Arcane,12,3,attack
+4,Index Slash,Arcane,22,5,attack
+4,Footnote Barrage,Arcane,34,8,attack
+4,Binding Seal,Arcane,18,5,ward
+4,Restore Index,Arcane,60,8,restore
+# Nested Lich (foe_id 6): one spell per job, so each of his subqueries returns exactly one row.
+6,Bone Dart,Shadow,18,3,attack
+6,Grave Chill,Shadow,28,6,attack
+6,Soul Rend,Shadow,48,10,attack
+6,Bone Ward,Shadow,40,5,ward
+6,Veil of Layers,Arcane,0,6,relevance
+6,Life Siphon,Shadow,40,8,heal

@@ -131,6 +131,11 @@
       "from": "Sir Wherewell"
     },
     {
+      "rune": "SUBQUERY",
+      "does": "a query inside brackets runs first and feeds the big one:  ... WHERE element = (SELECT weakness FROM enemies WHERE id = 6)",
+      "from": "the Nested Lich"
+    },
+    {
       "rune": "ORDER BY",
       "does": "sort the rows:  ... ORDER BY power DESC",
       "from": "the Sorting Sage (later)"

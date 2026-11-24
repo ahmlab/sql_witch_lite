@@ -9,11 +9,14 @@ answer with their own real SQL.
 
 This build is the **vertical slice**: title screen, the intro story, a hands-on **tutorial**
 against a Training Dummy, a battle against the **Asterisk Slime** (who teaches `LIMIT`), then the Filter Keep and a battle against
-**Sir Wherewell, Knight of the Filter** (who teaches `WHERE`), with win/lose screens.
+**Sir Wherewell, Knight of the Filter** (who teaches `WHERE`), then the Archive of Twins and the
+**Twin Archivists** (who teach `JOIN`), and finally the Sunken Crypt and the
+**Nested Lich** (who teaches `SUBQUERY`), with win/lose screens.
 
-Both guardians are rule-based AIs (no machine learning): perception, a state machine written
+The guardians are rule-based AIs (no machine learning): perception, a state machine written
 with `match`/`case`, goal-driven behaviour and steering behaviours. See
-[`docs/AI.md`](docs/AI.md) for how each requirement maps to the code.
+[`docs/AI.md`](docs/AI.md) for how each requirement maps to the code, and
+[`docs/AI_TWINS.md`](docs/AI_TWINS.md) for the Twins and [`docs/AI_LICH.md`](docs/AI_LICH.md) for the Lich.
 
 ## The rules in one minute
 
@@ -29,6 +32,8 @@ with `match`/`case`, goal-driven behaviour and steering behaviours. See
   copies it; she keeps it after the victory.
 - Sir Wherewell's Ward of Relevance turns aside every spell that is not super-effective
   against him. Scry him (`SELECT * FROM enemies`), then filter for his weakness.
+- The Nested Lich changes shell (element and weakness) every round and hides behind a Veil of
+  Layers. Ask the table instead of remembering: `WHERE element = (SELECT weakness FROM enemies WHERE id = 6)`.
 
 The full design is in [`docs/SQL_Witch_Design_Document.pdf`](docs/) (when present) and the
 sprite brief in [`docs/SPRITES.md`](docs/SPRITES.md).
@@ -61,6 +66,8 @@ python main.py
 | `--start tutorial` | The default: intro, then the tutorial, then the Slime. |
 | `--start slime` | Skip the tutorial: the intro leads straight to the Slime. |
 | `--start knight` | Start the story at the second guardian (with `LIMIT` already learned). |
+| `--start twins` | Start the story at the third guardian, the Twin Archivists (with `LIMIT`, `WHERE` and `ORDER BY` already learned). |
+| `--start lich` | Start the story at the last guardian, the Nested Lich (with `LIMIT`, `WHERE`, `ORDER BY` and `JOIN` already learned). |
 
 | Key | Action |
 |---|---|
@@ -84,7 +91,7 @@ In the terminal, no pygame needed. It plays the same battle with the same rules:
 python -m sim.play_cli --seed 7
 ```
 
-Add `--foe knight` to fight Sir Wherewell instead.
+Add `--foe knight` to fight Sir Wherewell instead, `--foe twins` for the Twin Archivists, or `--foe lich` for the Nested Lich.
 
 Type a query and press Enter. `:help`, `:why` (the Slime's reasoning), `:schema`, `:quit`.
 

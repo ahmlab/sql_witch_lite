@@ -49,12 +49,15 @@ class Battle:
         # One random generator for the whole battle: same seed, same battle (design doc 5.10).
         self.rng = random.Random(seed)
         self.seed = seed
-        self.conn = build_db(level or g.level, foe_ids=[g.foe_id])
+        self.conn = build_db(level or g.level, foe_ids=[g.foe_id, *g.extra_foe_ids])
         self.state = load_state(self.conn, foe_id=g.foe_id, seed=seed)
         # The Glade assumes nothing beyond SELECT and FROM; each guardian then adds its rune.
         self.state.ada.runes = set(g.ada_runes if ada_runes is None else ada_runes)
         self.state.foe.runes = set(g.runes)
         self.chart = rules.load_type_chart(self.conn)
+        if g.world is not None:                # e.g. the Twin Archivists' second body
+            self.state.pair = g.world(seed)
+            self.state.pair.attach(self.conn, self.state, self.chart)
         self.brain = brain if brain is not None else g.make_brain(self.conn)
         self.foe_opens = foe_opens
         self.turn_order: list[str] | None = None
@@ -96,9 +99,14 @@ class Battle:
         before = {"ada": self.state.ada.mp, "foe": self.state.foe.mp}
         turn = self.state.turn
         self.winner = rules.end_of_round(self.state)
+        if not self.winner and self.guardian.round_hook is not None:
+            # some guardians change at the end of a round (the Lich puts on a new shell)
+            self.guardian.round_hook(self.state, self.conn, self.rng)
         gained = {"ada": self.state.ada.mp - before["ada"],
                   "foe": self.state.foe.mp - before["foe"]}
         self.last_round = RoundEnd(turn, gained, self.winner)
+        if self.state.pair is not None and not self.winner:
+            self.state.pair.end_of_round(self.state, self.chart)   # new weaknesses for next round
         sync_state(self.conn, self.state)      # the regenerated MP must be visible to queries
         if not self.winner:
             self._start_round()
@@ -119,13 +127,15 @@ class Battle:
 
     def _remember(self, report: CastReport) -> rules.CastMemory:
         foe = self.state.foe.name
-        hits = [c for c in report.casts if c.kind in ("attack", "area") and c.target == foe]
+        foes = {foe} | ({self.state.twin.name} if self.state.twin else set())
+        hits = [c for c in report.casts if c.kind in ("attack", "area") and c.target in foes]
         return rules.CastMemory(
             turn=self.state.turn, runes=tuple(sorted(report.runes)),
             elements=tuple(c.element for c in report.casts if c.element),
             damage=sum(c.damage for c in hits),
             super_effective=any(c.effective >= rules.SUPER_EFFECTIVE for c in hits),
-            overflow=report.overflow, scry=report.scry)
+            overflow=report.overflow, scry=report.scry,
+            targets=tuple(sorted({c.target for c in hits})))
 
     def foe_act(self) -> FoeTurn:
         """The foe's five-stage loop (design doc 5.1): perceive, decide, express, execute, reveal."""
@@ -140,6 +150,8 @@ class Battle:
         sql = self.guardian.style(intent, self.state, self.foe_turns)   # express
         del intent                                            # from here on only the SQL counts
         report = resolve(self.conn, self.state, sql, "foe", self.rng, self.chart)  # execute
+        if self.state.pair is not None:        # the twins walk where their plan told them to
+            self.state.pair.obey(getattr(self.brain, "movements", None))
         invitation = self._invitation(report)                 # reveal
         self._advance()
         return FoeTurn(sql, report, reasoning, invitation, movement)
