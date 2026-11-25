@@ -138,7 +138,7 @@ class Battle:
             targets=tuple(sorted({c.target for c in hits})))
 
     def foe_act(self) -> FoeTurn:
-        """The foe's five-stage loop (design doc 5.1): perceive, decide, express, execute, reveal."""
+        """The foe's five stage loop: perceive, decide, express, execute, reveal."""
         if self.whose_turn != "foe":
             raise RuntimeError(f"It is not the foe's turn ({self.whose_turn}).")
         self.last_round = None
