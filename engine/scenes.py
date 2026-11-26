@@ -602,7 +602,12 @@ class BattleScene(Scene):
                 _, _, _, spell, target, dmg, crit, mult = event
                 words = effect_word(mult)
                 text = f"{spell}: {dmg}" + (" CRIT!" if crit else "") + (f" {words}!" if words else "")
-                self.say(text, 650, self._hit(self.side_of(target), dmg, crit, spell, target),
+                side = self.side_of(target)
+                if side == "minion":
+                    effect = self._hit(side, dmg, crit, spell, target)
+                else:
+                    effect = self._hit(side, dmg, crit, spell)
+                self.say(text, 650, effect,
                          "crit" if crit else "hit", *(("hp_down",) if dmg else ()))
             elif kind in ("heal", "item"):
                 side = self.side_of(event[3])
