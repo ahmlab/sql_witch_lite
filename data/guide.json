@@ -197,27 +197,48 @@
       "with": "NULL"
     },
     {
-      "sql": "SELECT s.name, e.name FROM spells s JOIN enemies e ON s.element = COALESCE(e.weakness, 'Arcane') WHERE e.hp IS NULL AND s.power > 50 LIMIT 1",
+      "sql": "SELECT s.name, e.name FROM spells s JOIN enemies e ON s.element = COALESCE(e.weakness, 'Arcane') WHERE e.hp IS NULL AND s.kind = 'attack' AND s.mp_cost <= (SELECT mp FROM witch) ORDER BY s.power DESC LIMIT 1",
       "kind": "cast",
-      "say": "hit NULL through the void",
+      "say": "A: your strongest spell you can afford, through the void",
       "needs": [
         "JOIN",
         "WHERE",
         "COALESCE",
         "IS NULL",
+        "SUBQUERY",
+        "ORDER BY",
         "LIMIT"
       ],
       "with": "NULL"
     },
     {
-      "sql": "SELECT s.name, e.name FROM spells s JOIN enemies e ON s.element = COALESCE(e.weakness, 'Arcane') WHERE e.hp IS NULL AND s.power > 50 GROUP BY e.name",
+      "sql": "SELECT DISTINCT s.name, e.name FROM spells s JOIN enemies e ON s.element = COALESCE(e.weakness, 'Arcane') WHERE e.hp IS NULL AND s.kind = 'attack' AND s.mp_cost <= (SELECT mp FROM witch) ORDER BY s.power DESC LIMIT 1",
       "kind": "cast",
-      "say": "the same hit, another technique: NULL remembers",
+      "say": "B: the same hit with DISTINCT: NULL remembers, so switch",
       "needs": [
         "JOIN",
         "WHERE",
         "COALESCE",
         "IS NULL",
+        "SUBQUERY",
+        "ORDER BY",
+        "LIMIT",
+        "DISTINCT"
+      ],
+      "with": "NULL"
+    },
+    {
+      "sql": "SELECT s.name, e.name FROM spells s JOIN enemies e ON s.element = COALESCE(e.weakness, 'Arcane') WHERE e.hp IS NULL AND s.kind = 'attack' AND s.mp_cost <= (SELECT mp FROM witch) GROUP BY s.name ORDER BY s.power DESC LIMIT 1",
+      "kind": "cast",
+      "say": "C: the same hit with GROUP BY. Then back to A",
+      "needs": [
+        "JOIN",
+        "WHERE",
+        "COALESCE",
+        "IS NULL",
+        "SUBQUERY",
+        "ORDER BY",
+        "LIMIT",
         "GROUP BY"
       ],
       "with": "NULL"
