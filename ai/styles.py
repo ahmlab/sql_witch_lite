@@ -109,8 +109,6 @@ def render_lich(intent: Intent, state: BattleState, turn: int) -> str:
     return "SELECT name FROM foe_spells WHERE " + LICH_PICKS[intent.action]
 
 
-# ------------------------------------------------------------------ Count Aggregor
-
 COUNT_RUNES = {"WHERE", "GROUP BY", "HAVING", "SUBQUERY", "IS NULL", "DISTINCT"}
 COUNT_SIGNATURE = "GROUP BY"
 COUNT_ALSO_TEACHES = frozenset({"HAVING", "DISTINCT"})
@@ -132,7 +130,6 @@ COUNT_TALLY = ("SELECT squad, COUNT(*) AS bats, SUM(hp) AS hp FROM enemies "
 
 
 def render_count(intent: Intent, state: BattleState, turn: int) -> str:
-    """Every Count query has GROUP BY, and a HAVING that only lets the spell through when it makes sense."""
     foe_id = state.foe_id
     kind = COUNT_KINDS.get(intent.action)
     if kind is None:
@@ -141,8 +138,6 @@ def render_count(intent: Intent, state: BattleState, turn: int) -> str:
     return (f"SELECT name FROM foe_spells WHERE foe_id = {foe_id} AND kind = '{kind}' "
             f"GROUP BY name HAVING {gate}")
 
-
-# ------------------------------------------------------------------ NULL
 
 NULL_RUNES = {"WHERE", "LIMIT", "JOIN", "GROUP BY", "HAVING", "DISTINCT", "SUBQUERY",
               "IS NULL", "COALESCE", "ORDER BY"}
@@ -155,7 +150,6 @@ NULL_LOOK = "SELECT name, hp, element, weakness FROM enemies WHERE hp IS NULL"
 
 
 def null_style(state: BattleState) -> str:
-    """The rune Ada uses most (out of the ones NULL can copy)."""
     counts: dict[str, int] = {}
     for cast in state.ada_casts:
         if not cast.scry:
@@ -168,7 +162,6 @@ def null_style(state: BattleState) -> str:
 
 
 def render_null(intent: Intent, state: BattleState, turn: int) -> str:
-    """NULL copies Ada's favourite style, and every query tests for NULL (so it teaches IS NULL)."""
     foe_id = state.foe_id
     kind = NULL_KINDS.get(intent.action)
     if kind is None:
