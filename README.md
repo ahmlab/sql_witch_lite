@@ -10,13 +10,18 @@ answer with their own real SQL.
 This build is the **vertical slice**: title screen, the intro story, a hands-on **tutorial**
 against a Training Dummy, a battle against the **Asterisk Slime** (who teaches `LIMIT`), then the Filter Keep and a battle against
 **Sir Wherewell, Knight of the Filter** (who teaches `WHERE`), then the Archive of Twins and the
-**Twin Archivists** (who teach `JOIN`), and finally the Sunken Crypt and the
-**Nested Lich** (who teaches `SUBQUERY`), with win/lose screens.
+**Twin Archivists** (who teach `JOIN`), the Tally Barracks and **Count Aggregor** (who teaches
+`GROUP BY` and `HAVING`), the Sunken Crypt and the **Nested Lich** (who teaches `SUBQUERY`), and
+finally the Null Void and **NULL** (who teaches `IS NULL` and `COALESCE`), with win/lose screens.
 
 The guardians are rule-based AIs (no machine learning): perception, a state machine written
-with `match`/`case`, goal-driven behaviour and steering behaviours. See
-[`docs/AI.md`](docs/AI.md) for how each requirement maps to the code, and
-[`docs/AI_TWINS.md`](docs/AI_TWINS.md) for the Twins and [`docs/AI_LICH.md`](docs/AI_LICH.md) for the Lich.
+with `match`/`case`, goal-driven behaviour and steering behaviours. Count Aggregor adds a
+behaviour tree, fuzzy logic and a flock of bats. NULL, the final guardian, reads how the player
+casts with fixed pattern rules, plans its next moves with a GOAP planner (A* search) and looks
+ahead with Monte Carlo simulation, so it adapts to the player without learning anything.
+See [`docs/AI.md`](docs/AI.md) for how each requirement maps to the code, [`docs/AI_TWINS.md`](docs/AI_TWINS.md) for the Twins,
+[`docs/AI_LICH.md`](docs/AI_LICH.md) for the Lich and [`docs/COUNT_AND_NULL.md`](docs/COUNT_AND_NULL.md)
+for Count Aggregor and NULL.
 
 ## The rules in one minute
 
@@ -67,7 +72,9 @@ python main.py
 | `--start slime` | Skip the tutorial: the intro leads straight to the Slime. |
 | `--start knight` | Start the story at the second guardian (with `LIMIT` already learned). |
 | `--start twins` | Start the story at the third guardian, the Twin Archivists (with `LIMIT`, `WHERE` and `ORDER BY` already learned). |
-| `--start lich` | Start the story at the last guardian, the Nested Lich (with `LIMIT`, `WHERE`, `ORDER BY` and `JOIN` already learned). |
+| `--start lich` | Start the story at the fifth guardian, the Nested Lich (with `LIMIT`, `WHERE`, `ORDER BY` and `JOIN` already learned). |
+| `--start count` | Start at Count Aggregor (behaviour tree; teaches `GROUP BY` and `HAVING`). |
+| `--start null` | Start at NULL, the final guardian (reads how you cast; teaches `IS NULL` and `COALESCE`). |
 
 | Key | Action |
 |---|---|
@@ -91,7 +98,7 @@ In the terminal, no pygame needed. It plays the same battle with the same rules:
 python -m sim.play_cli --seed 7
 ```
 
-Add `--foe knight` to fight Sir Wherewell instead, `--foe twins` for the Twin Archivists, or `--foe lich` for the Nested Lich.
+Add `--foe knight` to fight Sir Wherewell instead, `--foe twins` for the Twin Archivists, or `--foe lich` for the Nested Lich, `--foe count` for Count Aggregor, or `--foe null` for NULL.
 
 Type a query and press Enter. `:help`, `:why` (the Slime's reasoning), `:schema`, `:quit`.
 
@@ -162,6 +169,10 @@ and the window scenes. Engine tests run headless through SDL's dummy drivers.
 | `ai/knight.py` | Sir Wherewell: stance machine and six goal plans. |
 | `ai/styles.py` | Turns an intent into SQL: the Slime's `SELECT *`, the Knight's precise `WHERE`. |
 | `ai/roster.py` | The guardians in order, with their level, runes, brain and style. |
+| `ai/count.py`, `ai/btree.py`, `ai/swarm.py` | Count Aggregor: a behaviour tree, the Audit of Ada's technique, flocking Tally Bats. |
+| `ai/null.py`, `ai/patterns.py`, `ai/goap.py` | NULL: rule-based tell reading, a GOAP planner and a Monte Carlo lookahead. |
+| `magic/specials.py` | Squads and the quorum, NULL's hidden HP, Veil of Doubt and its special spells. |
+| `sim/evaluate.py` | Headless evaluation: scripted players, win rates, entropy, ablations, plots (`docs/eval/`). |
 | `ai/dummy.py` | The tutorial's Training Dummy: a brain that stands still. |
 | `engine/` | Everything that touches pygame: rendering, editor, Grimoire, scenes, audio. |
 | `engine/tutorial_scene.py` | The tutorial on screen: a battle scene with a Grimoire that teaches. |
