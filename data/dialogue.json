@@ -96,5 +96,14 @@
   "null_victory": ["NULL flickers, and for once it has a value: zero.", "Ada: My queries were never pointless. Precision is power."],
   "null_defeat": ["Ada's HP hits zero. NULL wears her silhouette a little better.", "Grimoire: = never matches NULL. Use IS NULL, and vary your casts."],
   "count_tip": "Name a squad in your row to aim at it. F3: guide",
-  "null_tip": "Spells pass through NULL. Look: IS NULL. F3: guide"
+  "null_tip": "Spells pass through NULL. Look: IS NULL. F3: guide",
+  "ending": [
+    {"scene": "nullvoid", "null_gone": true, "sound": "faint", "speaker": "", "text": "NULL flickers one last time and falls apart into empty rows. For once, the void has a value: zero."},
+    {"scene": "dawn", "book": true, "sound": "book", "speaker": "Grimoire", "text": "Six guardians, six lessons. You did not just survive the Kingdom of Code, witch. You understood it."},
+    {"scene": "dawn", "book": true, "speaker": "Ada", "text": "Back home nobody read my queries. Here, every single one of them mattered."},
+    {"scene": "dawn", "book": true, "speaker": "Grimoire", "text": "Then stay. Codd will always need a witch who asks exactly the right question."},
+    {"scene": "office", "done": true, "speaker": "", "text": "Far away, on a desk nobody has cleared, a monitor still glows. The query finally finishes: 100%."},
+    {"scene": "dawn", "book": true, "speaker": "Ada", "text": "Let it run without me. I have spells to write."},
+    {"scene": "theend", "speaker": "", "text": "THE END. Thank you for playing SQL Witch!"}
+  ]
 }
