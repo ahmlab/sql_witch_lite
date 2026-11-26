@@ -64,7 +64,7 @@ pay for. A query inside a query inside a query: that is why he is "nested".
 
 ## Evaluation
 
-`python -m sim.lich_eval` (300 seeded battles per player; the Lich opens every round; Ada is level 5 with 120 HP, 80 MP and 12 MP back each round; the Lich has 760 HP, knowing LIMIT, WHERE, ORDER BY and JOIN, and SUBQUERY after his first cast):
+`python -m sim.lich_eval` (300 seeded battles per player; the Lich opens every round; Ada is level 5 with 120 HP, 80 MP and 12 MP back each round; the Lich has 620 HP, knowing LIMIT, WHERE, ORDER BY and JOIN, and SUBQUERY after his first cast):
 
 | Player | Ada wins | Rounds | Ada HP left |
 |---|---|---|---|
