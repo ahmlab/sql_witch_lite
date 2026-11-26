@@ -92,7 +92,8 @@ def test_the_dummy_is_one_new_row_weak_to_fire_with_no_spells():
         [("Training Dummy", "Fire")]
     assert conn.execute("SELECT COUNT(*) FROM foe_spells").fetchone() == (0,)
     full = build_db()
-    assert full.execute("SELECT COUNT(*) FROM enemies").fetchone() == (6,)
+    assert full.execute("SELECT COUNT(*) FROM enemies WHERE name = 'Training Dummy'").fetchone() == (1,)
+    assert full.execute("SELECT COUNT(*) FROM foe_spells WHERE foe_id = 3").fetchone() == (0,)
 
 
 # ------------------------------------------------------------------ the flow

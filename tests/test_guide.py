@@ -45,8 +45,12 @@ def to_battle(start="slime"):
 def test_every_example_is_valid_and_its_label_is_true(example):
     """A LOOK must really be a free scry and a CAST must really cast, with only the runes
     the example says it needs."""
-    foe = "lich" if "id = 6" in example["sql"] else "slime"      # the lich lessons name his row
-    battle = Battle(seed=1, guardian=foe, ada_runes=set(example["needs"]), level=2)
+    mine = {"Count Aggregor": "count", "NULL": "null"}.get(example.get("with"))
+    if mine:
+        battle = Battle(seed=1, guardian=mine, ada_runes=set(example["needs"]), foe_opens=False)
+    else:
+        foe = "lich" if "id = 6" in example["sql"] else "slime"      # the lich lessons name his row
+        battle = Battle(seed=1, guardian=foe, ada_runes=set(example["needs"]), level=2)
     state = battle.state
     guard.inspect(example["sql"], state.ada.runes)
     report = resolve(battle.conn, state, example["sql"], "ada", random.Random(0))
