@@ -47,7 +47,7 @@
     {"scene": "archive", "book": true, "twins": true, "speaker": "Archivist Quill", "text": "Welcome, witch. I am Quill, and this is my brother Ink. We are bound by a key."},
     {"scene": "archive", "book": true, "twins": true, "speaker": "Archivist Ink", "text": "If Quill falls, I raise him again. If I fall, he raises me. Strike one of us and it is wasted."},
     {"scene": "archive", "book": true, "twins": true, "speaker": "Ada", "text": "So I have to hit both of you at once? With one spell?"},
-    {"scene": "archive", "book": true, "twins": true, "speaker": "Grimoire", "text": "With one query. Look at them first: SELECT * FROM enemies. Their weakness changes every round. Then watch how they write their own queries: a JOIN puts a name beside every spell."}
+    {"scene": "archive", "book": true, "twins": true, "speaker": "Grimoire", "text": "With one query. Look at them first: SELECT * FROM enemies. Their weakness changes every round. Then watch how they write their own queries: a JOIN puts a name beside every spell. Stuck? Type SELECT and press TAB: the faded words show the next piece of the query, and TAB takes it."}
   ],
   "twins_victory": [
     "Quill and Ink fall together, and the key between them snaps.",
@@ -63,7 +63,7 @@
     {"scene": "crypt", "book": true, "lich": true, "sound": "ward_up", "speaker": "Nested Lich", "text": "Welcome, little witch. My body is inside a robe, my robe is inside a shell, and my shell is inside another shell. Try to find me in there."},
     {"scene": "crypt", "book": true, "lich": true, "speaker": "Nested Lich", "text": "I change my shell every round, and my weakness changes with it. What you read about me a minute ago is already old news."},
     {"scene": "crypt", "book": true, "lich": true, "speaker": "Ada", "text": "So I have to ask what he is weak to AND cast the spell, in one go? Can I put a query inside another query?"},
-    {"scene": "crypt", "book": true, "lich": true, "speaker": "Grimoire", "text": "You can! A SELECT inside brackets runs first, like a small question for the big one. He never casts without one. Watch his book and the rune will glow."},
+    {"scene": "crypt", "book": true, "lich": true, "speaker": "Grimoire", "text": "You can! A SELECT inside brackets runs first, like a small question for the big one. He never casts without one. Watch his book and the rune will glow. Then type SELECT and press TAB: the faded words walk you through it, and TAB takes each piece."},
     {"scene": "crypt", "book": true, "lich": true, "speaker": "Nested Lich", "text": "ENOUGH TALK. LAYER UP!"}
   ],
   "lich_victory": [

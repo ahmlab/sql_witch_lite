@@ -4,4 +4,4 @@ id,name,hp,max_hp,mp,max_mp,element,weakness,speed
 3,Training Dummy,300,300,0,0,Nature,Fire,0
 4,Archivist Quill,90,90,40,40,Nature,Fire,4
 5,Archivist Ink,90,90,40,40,Tide,Storm,4
-6,Nested Lich,620,620,70,70,Shadow,Light,3
+6,Nested Lich,760,760,70,70,Shadow,Light,3

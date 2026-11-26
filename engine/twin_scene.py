@@ -260,6 +260,7 @@ class TwinScene(BattleScene):
                 self.glow = (rune, self.time)
             self.say(f"{rune} glows in their book!", 1200, learn, "invitation")
             self.say(f"Ada copies the rune: {rune}", 1200)
+            self.say("Type SELECT and press TAB: the faded words show the query.", 1400)
         self._tell_round_end()
 
     # ------------------------------------------------------------ moving

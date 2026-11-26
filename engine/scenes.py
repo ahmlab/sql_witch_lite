@@ -436,6 +436,8 @@ class BattleScene(Scene):
         conn = self.battle.conn
         self.editor = QueryEditor(names=schema_words(conn), tables=schema_tables(conn),
                                   unlocked=set(self.battle.state.ada.runes), visible_lines=6)
+        if guardian in ("twins", "lich"):
+            self.editor.coach = guardian         # TAB walks her through this boss's lesson query
         self.grimoire = Grimoire(self.editor)
         self.beats: list[Beat] = []
         self.beat: Beat | None = None
@@ -676,6 +678,8 @@ class BattleScene(Scene):
                 self.glow = (rune, self.time)
             self.say(f"{rune} glows in {name}'s book!", 1200, learn, "invitation")
             self.say(f"Ada copies the rune: {rune}", 1200)
+            if self.key == "lich":
+                self.say("Type SELECT and press TAB: the faded words show the query.", 1400)
         self._tell_round_end()
 
     # ------------------------------------------------------------ input and time
