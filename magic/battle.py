@@ -43,7 +43,7 @@ class RoundEnd:
 class Battle:
     def __init__(self, seed: int, guardian: str = "slime", brain=None,
                  ada_runes: set[str] | None = None, level: int | None = None,
-                 foe_opens: bool = True):
+                 foe_opens: bool = True, history: list | None = None):
         self.guardian: Guardian = GUARDIANS[guardian]
         g = self.guardian
         # One random generator for the whole battle: same seed, same battle (design doc 5.10).
@@ -58,7 +58,11 @@ class Battle:
         if g.world is not None:                # e.g. the Twin Archivists' second body
             self.state.pair = g.world(seed)
             self.state.pair.attach(self.conn, self.state, self.chart)
+        if g.setup is not None:
+            g.setup(self.conn, self.state, self.rng)
         self.brain = brain if brain is not None else g.make_brain(self.conn)
+        if history and hasattr(self.brain, "observe_run"):
+            self.brain.observe_run(history)
         self.foe_opens = foe_opens
         self.turn_order: list[str] | None = None
         self.foe_turns = 0
@@ -161,5 +165,6 @@ class Battle:
         rune = self.guardian.signature
         if rune in report.runes and rune not in self.state.ada.runes:
             self.state.ada.runes.add(rune)
+            self.state.ada.runes |= set(self.guardian.also_teaches)
             return rune
         return None
