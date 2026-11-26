@@ -193,3 +193,112 @@ def draw_null(canvas, centre, t, flash, fainted, element, veiled, mode="listenin
             angle = i / 24 * math.tau - spin
             canvas.set_at((render.snap(cx + math.cos(angle) * 19),
                            render.snap(cy + 1 + math.sin(angle) * 24)), ring)
+
+
+SKY_BANDS = [render.INK, render.NIGHT, render.DUSK, render.VIOLET, render.LAVENDER, render.CLAY,
+             render.PEACH, render.BUTTER]
+RUNE_WORDS = ["SELECT", "JOIN", "GROUP BY", "IS NULL", "WHERE", "LIMIT", "HAVING", "COALESCE"]
+
+
+def draw_dawn(canvas, t, ground_y=110):
+    rise = min(1.0, t / 9000)
+    band_h = ground_y // len(SKY_BANDS) + 1
+    for i, colour in enumerate(SKY_BANDS):
+        pygame.draw.rect(canvas, colour, (0, i * band_h, 320, band_h))
+    for i in range(40):
+        x = noise(i, 3) * 37 % 320
+        y = noise(i, 7) % 40
+        if rise < 0.8 and (t // 300 + i) % 7:
+            canvas.set_at((x, y), render.WHITE if i % 3 else render.LILAC)
+    sun_y = render.snap(ground_y - 4 - rise * 22)
+    for k in range(12):
+        angle = k / 12 * math.tau + t / 3000
+        a = (160 + math.cos(angle) * 20, sun_y + math.sin(angle) * 20)
+        b = (160 + math.cos(angle) * 30, sun_y + math.sin(angle) * 30)
+        pygame.draw.line(canvas, render.GOLD, a, b)
+    pygame.draw.circle(canvas, render.GOLD, (160, sun_y), 16)
+    pygame.draw.circle(canvas, render.BUTTER, (160, sun_y), 12)
+    for x in range(0, 320, 4):
+        top = ground_y - 14 - round(6 * math.sin(x / 37) + 4 * math.sin(x / 13))
+        pygame.draw.rect(canvas, render.DUSK, (x, top, 4, ground_y - top))
+    for x in range(0, 320, 3):
+        top = ground_y - 6 - round(3 * math.sin(x / 19 + 1))
+        pygame.draw.rect(canvas, render.FOREST, (x, top, 3, ground_y - top))
+    pygame.draw.rect(canvas, render.GRASS, (0, ground_y - 2, 320, 2))
+    pygame.draw.rect(canvas, render.FOREST, (0, ground_y, 320, 180 - ground_y))
+    f = render.font()
+    for i, word in enumerate(RUNE_WORDS):
+        life = (t / 40 + i * 37) % 160
+        x = 20 + (i * 41) % 280 + round(math.sin(t / 700 + i) * 4)
+        y = render.snap(ground_y - 8 - life * 0.7)
+        if life < 140 and y > 2:
+            f.draw(canvas, word, (x, y), render.LILAC if life < 90 else render.LAVENDER)
+    for i in range(14):
+        x = render.snap(20 + noise(i, 11) * 3 % 280 + math.sin(t / 500 + i) * 6)
+        y = render.snap(ground_y - 10 - noise(i, 5) % 50 + math.cos(t / 650 + i) * 4)
+        if (t // 200 + i) % 4:
+            canvas.set_at((x, y), render.BUTTER)
+            canvas.set_at((x + 1, y), render.GOLD)
+
+
+def draw_null_end(canvas, centre, gone):
+    cx, cy = render.snap(centre[0]), render.snap(centre[1])
+    melt = min(1.0, gone / 3500)
+    cut = render.snap(cy + 18 - melt * 50)
+    if melt < 1.0:
+        flash = (gone // 90) % 5 == 0
+        canvas.set_clip(pygame.Rect(0, 0, 320, max(0, cut)))
+        null_shape(canvas, cx, cy, render.WHITE if flash else render.LILAC, fill=render.INK)
+        canvas.set_clip(None)
+        for x in range(cx - 12, cx + 13):
+            if noise(x, gone // 60) % 3 == 0:
+                canvas.set_at((x, cut), render.FOAM)
+    for i in range(36):
+        start = (i * 97) % 3500
+        age = gone - start
+        if 0 <= age < 2200:
+            x = cx - 11 + noise(i, 1) % 23 + round(math.sin(age / 200 + i) * 2)
+            y = render.snap(cy + 16 - (start / 3500) * 50 - age * 0.03)
+            colour = (render.LILAC, render.VIOLET, render.FOAM)[i % 3]
+            if age < 1500 or (age // 100) % 2:
+                pygame.draw.rect(canvas, colour, (x, y, 2 if i % 4 else 1, 2 if i % 4 else 1))
+    if melt >= 1.0:
+        f = render.font()
+        y = render.snap(cy - 10 - min(20, (gone - 3500) / 60))
+        f.draw(canvas, "= 0", (cx - f.width("= 0") // 2, y), render.BUTTER, shadow=render.INK)
+
+
+def draw_the_end(canvas, t):
+    canvas.fill(render.INK)
+    for i in range(60):
+        x = noise(i, 2) * 41 % 320
+        y = noise(i, 9) * 3 % 108
+        if (t // 250 + i) % 9:
+            canvas.set_at((x, y), render.LILAC if i % 4 else render.WHITE)
+    for b in range(4):
+        cycle = 1600 + b * 300
+        age = (t + b * 700) % cycle
+        bx = 50 + b * 72
+        by = 28 + (b % 2) * 22
+        r = age / cycle * 26
+        colour = (render.GOLD, render.AQUA, render.LILAC, render.RED)[b]
+        if age < cycle * 0.8:
+            for k in range(12):
+                angle = k / 12 * math.tau
+                canvas.set_at((render.snap(bx + math.cos(angle) * r),
+                               render.snap(by + math.sin(angle) * r)), colour)
+                canvas.set_at((render.snap(bx + math.cos(angle) * r * 0.6),
+                               render.snap(by + math.sin(angle) * r * 0.6)), render.BUTTER)
+    f = render.font()
+    dot = 3
+    title = "THE END"
+    bob = render.snap(math.sin(t / 500) * 2)
+    f.draw_big(canvas, title, ((320 - f.big_width(title, dot)) // 2, 44 + bob), render.BUTTER, dot,
+               shadow=render.AMBER, outline=render.INK)
+    sub = "SQL WITCH"
+    f.draw(canvas, sub, ((320 - f.width(sub)) // 2, 76), render.LILAC, shadow=render.INK)
+    for i, word in enumerate(RUNE_WORDS):
+        x = render.snap(160 + math.cos(t / 1400 + i / len(RUNE_WORDS) * math.tau) * 120 - f.width(word) // 2)
+        y = render.snap(62 + math.sin(t / 1400 + i / len(RUNE_WORDS) * math.tau) * 34)
+        if 2 < y < 104:
+            f.draw(canvas, word, (x, y), render.VIOLET)

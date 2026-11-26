@@ -206,6 +206,8 @@ TITLE_DOT = 3                     # big titles: each dot of a 5x7 letter is a 3x
 
 def next_scene(game: "Game", key: str) -> Scene:
     """The scene a story beat leads to: the tutorial, or a guardian's battle."""
+    if key == "end":
+        return TitleScene(game)
     if key == "tutorial":
         # Imported here: the tutorial scene is built on BattleScene, defined in this module.
         from engine.tutorial_scene import TutorialScene
@@ -265,6 +267,7 @@ class DialogueScene(Scene):
         self.drowsy = 0.0
         self.book_born: int | None = None
         self.void_since = 0
+        self.dawn_since = 0
         self.line_started = 2 * self.FADE_MS
         self._start_line()
 
@@ -282,6 +285,8 @@ class DialogueScene(Scene):
             self.line_started = self.time + 2 * self.FADE_MS
             if scene == "void":
                 self.void_since = self.time + self.FADE_MS
+            if scene == "dawn" and not self.dawn_since:
+                self.dawn_since = self.time + self.FADE_MS
         if self.line.get("book") and self.book_born is None:
             self.book_born = self.line_started
         if self.line.get("sound"):
@@ -312,11 +317,29 @@ class DialogueScene(Scene):
     # ------------------------------------------------------------ drawing
 
     def _draw_backdrop(self, canvas, name: str) -> None:
-        if name == "office":
+        if name == "office" and self.line.get("done"):
+            gone = self.time - self.line_started
+            bar = 0.99 if gone < 1800 else 1.0
+            scenery.draw_office(canvas, self.time, 3, bar)
+            if bar >= 1.0 and (self.time // 500) % 2 == 0:
+                f = render.font()
+                f.draw(canvas, "QUERY COMPLETE", (241 - f.width("QUERY COMPLETE") // 2, 36),
+                       render.MINT, shadow=render.INK)
+        elif name == "office":
             progress = 0.95 + 0.04 * min(1.0, self.drowsy / 3)     # it stops at 99%
             scenery.draw_office(canvas, self.time, self.drowsy, progress)
         elif name == "void":
             scenery.draw_void(canvas, self.time - self.void_since)
+        elif name == "theend":
+            boss_art.draw_the_end(canvas, self.time)
+        elif name == "dawn":
+            boss_art.draw_dawn(canvas, self.time - self.dawn_since, ground_y=110)
+            draw_ada(canvas, ADA_STANDING)
+            if self.line.get("book"):
+                speaking = (self.line["speaker"] == "Grimoire"
+                            and self._shown_chars() < len(self.line["text"]))
+                scenery.draw_book(canvas, (130, 64), self.time, 10000, speaking,
+                                  shadow=render.DUSK)
         elif name == "archive":
             from engine.twin_scene import draw_archive, draw_twin
             draw_archive(canvas, self.time, ground_y=110)
@@ -362,6 +385,8 @@ class DialogueScene(Scene):
                 boss_art.draw_count(canvas, (252, 92), self.time, False, False, True, False)
             if self.line.get("null"):
                 boss_art.draw_null(canvas, (252, 92), self.time, False, False, None, True)
+            if self.line.get("null_gone"):
+                boss_art.draw_null_end(canvas, (252, 92), max(0, self.time - self.line_started))
         else:
             canvas.fill(render.INK)
 
@@ -1129,7 +1154,7 @@ class BattleScene(Scene):
             lines.append("The guardian has not decided anything yet.")
         lines.append(f"steering now: {self.order.behaviour} {self.order.target}   "
                      f"book: {len(battle.state.foe_book)} queries")
-        lines = lines[:24]                         # what fits on the 180-pixel screen
+        lines = lines[:24]
         render.cover(canvas, pygame.Rect(4, 4, 312, 8 + len(lines) * render.LINE_H),
                      (*render.INK, 235))
         for i, line in enumerate(lines):
@@ -1172,7 +1197,10 @@ class ResultScene(Scene):
             # before the Invitation.
             self.game.runes |= self.battle.state.ada.runes | {self.rune}
             if self.next is None:                    # the end of this build
-                self.game.switch(TitleScene(self.game))
+                if self.key == "null" and "ending" in self.game.dialogue:
+                    self.game.switch(DialogueScene(self.game, "ending", "end"))
+                else:
+                    self.game.switch(TitleScene(self.game))
             else:
                 self.game.switch(DialogueScene(self.game, f"{self.next}_intro", self.next))
 
@@ -1204,7 +1232,9 @@ class ResultScene(Scene):
                    (box.x + 4, box.y + 3), render.VIOLET)
             for i, line in enumerate(wrap(self.codex, 62)[:2]):
                 f.draw(canvas, line, (box.x + 4, box.y + 12 + i * render.LINE_H), render.INK)
-        if self.won and self.next is None:
+        if self.won and self.next is None and self.key == "null":
+            prompt = "ENTER continue    ESC quit"
+        elif self.won and self.next is None:
             end = self.game.dialogue.get("end_of_slice", "")
             f.draw(canvas, end, ((320 - f.width(end)) // 2, 156), render.BUTTER)
             prompt = "ENTER title    ESC quit"
