@@ -202,6 +202,52 @@ def next_step(text: str, unlocked: set[str], weakness: str | None = None) -> tup
     return "", ""
 
 
+# The query each of the last two bosses teaches, in pieces. The editor offers the next piece
+# when what the player has typed so far matches the start of it (see coached_step).
+COACH_QUERIES = {
+    "twins": ("JOIN", [
+        "SELECT s.name, e.name", "FROM spells AS s", "JOIN enemies AS e",
+        "ON s.element = e.weakness", "WHERE s.kind = 'attack'", "AND s.mp_cost <= 3"]),
+    "lich": ("SUBQUERY", [
+        "SELECT name", "FROM spells", "WHERE kind = 'attack'", "AND element =",
+        "(SELECT weakness FROM enemies WHERE id = 6)", "AND mp_cost <= 15",
+        "ORDER BY power DESC", "LIMIT 1"]),
+}
+COACH_KEYWORDS = SQL_KEYWORDS | {"ORDER", "BY", "DESC", "JOIN", "ON", "AS"}
+
+
+def coached_step(text: str, unlocked: set[str], coach: str | None) -> tuple[str, str] | None:
+    """Offer the next piece of the boss's lesson query, or None to use the usual help.
+
+    It only helps once the rune is unlocked and only while the player's words are the start
+    of the lesson query (a free look like SELECT * FROM enemies gets the usual help)."""
+    if coach not in COACH_QUERIES or (text and not text[-1].isspace()):
+        return None
+    rune, pieces = COACH_QUERIES[coach]
+    if rune not in unlocked:
+        return None
+    wanted = [word for piece in pieces for word in piece.split()]
+    ends = []                                        # where each piece ends, in words
+    total = 0
+    for piece in pieces:
+        total += len(piece.split())
+        ends.append(total)
+    typed = text.split()
+    if not typed or len(typed) > len(wanted):
+        return None
+    for mine, theirs in zip(typed, wanted):
+        if mine != theirs and mine.upper() != theirs.upper():
+            return None
+    if len(typed) == len(wanted):
+        return "", "CTRL+ENTER casts"
+    stop = min(end for end in ends if end > len(typed))
+    piece = wanted[len(typed):stop]
+    lowercase = any(w.isalpha() and w.islower() and w.upper() in COACH_KEYWORDS for w in typed)
+    if lowercase:
+        piece = [w.lower() if w in COACH_KEYWORDS else w for w in piece]
+    return " ".join(piece), ""
+
+
 def schema_tables(conn) -> list[str]:
     return [row[0] for row in conn.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")]
@@ -233,6 +279,7 @@ class QueryEditor:
         self.visible_lines = visible_lines
         self._tab: tuple[str, list[str], int] | None = None   # (prefix, matches, index)
         self.known_weakness: str | None = None   # set once the player has looked at the foe
+        self.coach: str | None = None            # "twins" or "lich": offer that boss's lesson query
         # Optional: text -> (faded text, advice), or None for the usual help. The tutorial uses
         # it to offer exactly as much of a lesson's query as the lesson allows.
         self.guide: Callable[[str], tuple[str, str] | None] | None = None
@@ -433,7 +480,8 @@ class QueryEditor:
         text, lead = self.text, ""
         if text and not text[-1].isspace():
             text, lead = text + " ", " "
-        step, advice = next_step(text, self.unlocked, self.known_weakness)
+        coached = coached_step(text, self.unlocked, self.coach)
+        step, advice = coached or next_step(text, self.unlocked, self.known_weakness)
         return (lead + step if step else ""), advice
 
     def accept_suggestion(self) -> bool:

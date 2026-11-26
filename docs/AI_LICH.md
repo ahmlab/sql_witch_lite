@@ -64,15 +64,15 @@ pay for. A query inside a query inside a query: that is why he is "nested".
 
 ## Evaluation
 
-`python -m sim.lich_eval` (300 seeded battles per player; the Lich opens every round; Ada is level 5 with 120 HP and 80 MP, knowing LIMIT, WHERE, ORDER BY and JOIN, and SUBQUERY after his first cast):
+`python -m sim.lich_eval` (300 seeded battles per player; the Lich opens every round; Ada is level 5 with 120 HP, 80 MP and 12 MP back each round; the Lich has 620 HP, knowing LIMIT, WHERE, ORDER BY and JOIN, and SUBQUERY after his first cast):
 
 | Player | Ada wins | Rounds | Ada HP left |
 |---|---|---|---|
-| Blind: `SELECT name FROM spells LIMIT 1` every turn | 0% | 6.7 | 0 |
-| Looks at his weakness and types the element by hand (no subquery) | 100% | 8.8 | 73.0 |
-| Uses the subquery query above | 100% | 6.2 | 116.4 |
+| Blind: `SELECT name FROM spells LIMIT 1` every turn | 0% | 6.6 | 0 |
+| Looks at his weakness and types the element by hand (no subquery) | 100% | 10.8 | 58.5 |
+| Uses the subquery query above | 100% | 6.9 | 111.8 |
 
-Same players against a `RandomBrain` Lich (any spell he can pay for): blind 0%, by hand 93%, subquery 96%.
+Same players against a `RandomBrain` Lich (any spell he can pay for): blind 0%, by hand 90%, subquery 96%.
 
 What this shows, honestly:
 - He beats the player who never reads his weakness and loses to the ones who do.
@@ -87,3 +87,13 @@ What this shows, honestly:
 - The art is placeholder shapes, like the Slime and the Knight.
 - If Ada has not seen his first cast she cannot write SUBQUERY yet (the Invitation comes first), the same as WHERE for the Knight.
 - 4 tests in the repo were already failing before this change (`test_beta_feedback` Knight lines, two in `test_brains`, `test_tutorial_scene` intro). They are not about the Lich.
+
+## Help for the player
+
+Both late bosses teach a query the player has to write, so the editor coaches it
+(`coached_step` in `engine/textinput.py`). Once the boss's rune is unlocked (JOIN for the twins,
+SUBQUERY for the Lich), typing `SELECT` and pressing TAB offers the lesson query one piece at a
+time. The Lich query ends with `AND mp_cost <= 15 ORDER BY power DESC LIMIT 1`: without the cost
+cap the player picks Judgment Ray (32 MP), runs out of mana and stalls. The F3 guide has the same
+queries as examples, and the intro dialogue and the unlock message tell the player about TAB.
+Ada's mana regeneration at level 5 is 12 (it was 9); only this fight uses level 5.

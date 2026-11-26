@@ -117,6 +117,43 @@
         "WHERE",
         "LIMIT"
       ]
+    },
+    {
+      "sql": "SELECT name FROM items WHERE name = 'Ether'",
+      "kind": "cast",
+      "say": "drink an Ether from your satchel to get MP back (it uses your turn)",
+      "needs": [
+        "WHERE"
+      ]
+    },
+    {
+      "sql": "SELECT s.name, e.name FROM spells AS s JOIN enemies AS e ON s.element = e.weakness WHERE s.kind = 'attack' AND s.mp_cost <= 3",
+      "kind": "cast",
+      "say": "TWINS: JOIN lines up each spell with the foe it is strong against, so Quill and Ink each get their own spell (cost 3 or less keeps your MP)",
+      "needs": [
+        "JOIN",
+        "WHERE"
+      ]
+    },
+    {
+      "sql": "SELECT element, power, mp_cost FROM spells WHERE element = (SELECT weakness FROM enemies WHERE id = 6)",
+      "kind": "look",
+      "say": "LICH: the query in brackets finds his weakness right now, so you never type the element",
+      "needs": [
+        "SUBQUERY",
+        "WHERE"
+      ]
+    },
+    {
+      "sql": "SELECT name FROM spells WHERE kind = 'attack' AND element = (SELECT weakness FROM enemies WHERE id = 6) AND mp_cost <= 15 ORDER BY power DESC LIMIT 1",
+      "kind": "cast",
+      "say": "LICH: his weakest spot, the strongest spell that costs 15 MP or less",
+      "needs": [
+        "SUBQUERY",
+        "WHERE",
+        "ORDER BY",
+        "LIMIT"
+      ]
     }
   ],
   "runes": [
@@ -142,8 +179,8 @@
     },
     {
       "rune": "JOIN",
-      "does": "combine two tables row by row",
-      "from": "the Twin Archivists (later)"
+      "does": "combine two tables row by row:  ... FROM spells AS s JOIN enemies AS e ON s.element = e.weakness",
+      "from": "the Twin Archivists"
     },
     {
       "rune": "GROUP BY",
