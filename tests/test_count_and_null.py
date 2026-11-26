@@ -9,8 +9,8 @@ from ai.count import CountBrain, make_plan
 from ai.null import NullBrain, classify
 from ai.goap import Act, plan
 from ai.patterns import read_tells, signature, spot_tell, unsure
-from ai.roster import GUARDIANS, ORDER, next_guardian
-from ai.steering import Kinematic, Vec
+from ai.roster import ORDER, next_guardian
+from ai.steering import Vec
 from ai.styles import render_count, render_null
 from ai.swarm import Flock, next_state, squad_posts
 from magic import guard, specials
@@ -167,7 +167,7 @@ def test_summon_muster_and_rally():
     b = count_battle()
     s = b.state
     s.minions.clear()
-    squad, n = specials.summon_squad(s, 3, split=True)
+    squad, _ = specials.summon_squad(s, 3, split=True)
     squad2, _ = specials.summon_squad(s, 2, split=True)
     assert squad != squad2
     specials.summon_squad(s, 1, split=False)
@@ -175,7 +175,7 @@ def test_summon_muster_and_rally():
     for bat in list(specials.squads(s)[squad])[:2]:
         bat.hp = 0
     s.minions = [m for m in s.minions if m.alive]
-    keep, moved = specials.rally(s)
+    _, moved = specials.rally(s)
     assert moved in (0, 1)
 
 
@@ -371,7 +371,7 @@ def test_the_tell_rules_spot_streaks_swings_and_cycles():
 
 
 def test_reading_tells_gives_a_distribution_and_more_streak_means_more_sure():
-    dist, rule, guess = read_tells(["A", "B", "B"], ["A", "B", "C"])
+    dist, _, guess = read_tells(["A", "B", "B"], ["A", "B", "C"])
     assert abs(sum(dist.values()) - 1) < 1e-9 and guess == "B" and dist["C"] > 0
     longer, _, _ = read_tells(["B", "B", "B", "B"], ["A", "B", "C"])
     assert longer["B"] > dist["B"]
