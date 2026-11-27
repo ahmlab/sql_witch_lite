@@ -29,12 +29,14 @@ def lich_state(**foe):
 
 # ------------------------------------------------------------------ the story order
 
-def test_the_story_order_is_slime_knight_twins_lich():
-    assert ORDER == ["slime", "knight", "twins", "lich"]
+def test_the_story_order_is_slime_knight_twins_count_lich_null():
+    assert ORDER == ["slime", "knight", "twins", "count", "lich", "null"]
     assert next_guardian("slime") == "knight"
     assert next_guardian("knight") == "twins"
-    assert next_guardian("twins") == "lich"
-    assert next_guardian("lich") is None
+    assert next_guardian("twins") == "count"
+    assert next_guardian("count") == "lich"
+    assert next_guardian("lich") == "null"
+    assert next_guardian("null") is None
 
 
 def test_the_lich_teaches_subquery_and_ada_arrives_knowing_the_older_runes():

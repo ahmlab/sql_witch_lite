@@ -5,7 +5,8 @@ brain, the SQL style, the runes the guardian can write and the one it teaches.
 A guardian whose spells are missing from foe_spells fails when its brain is built, with
 the missing names in the error, instead of misbehaving mid-battle.
 
-STATUS: the Asterisk Slime, Sir Wherewell, the Nested Lich and the tutorial's Training Dummy.
+STATUS: the Asterisk Slime, Sir Wherewell, the Twin Archivists, Count Aggregor, the Nested Lich,
+NULL and the tutorial's Training Dummy.
 """
 
 from __future__ import annotations
@@ -14,6 +15,8 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Callable
 
+from ai import count as count_ai
+from ai import null as null_ai
 from ai.base import RandomBrain
 from ai.archivist_style import TWIN_RUNES, TWIN_SIGNATURE, render_archivists
 from ai.archivists import ACTION_SPELLS as TWIN_ACTIONS, PairBrain
@@ -23,9 +26,12 @@ from ai.knight import ACTION_SPELLS, KnightBrain, knight_legal_intents
 from ai.lich import (ACTION_SPELLS as LICH_SPELLS, LichBrain, lich_legal_intents,
                      shift_shell)
 from ai.pair import make_pair
-from ai.styles import (KNIGHT_RUNES, KNIGHT_SIGNATURE, LICH_RUNES, LICH_SIGNATURE,
-                       SLIME_RUNES, SLIME_SIGNATURE, render_knight, render_lich,
-                       render_slime)
+from ai.styles import (COUNT_ALSO_TEACHES, COUNT_RUNES, COUNT_SIGNATURE, KNIGHT_RUNES,
+                       KNIGHT_SIGNATURE, LICH_RUNES, LICH_SIGNATURE, NULL_ALSO_TEACHES,
+                       NULL_RUNES, NULL_SIGNATURE, SLIME_RUNES, SLIME_SIGNATURE, render_count,
+                       render_knight, render_lich, render_null, render_slime)
+
+from magic import specials
 
 SLIME_ID, KNIGHT_ID, LICH_ID = 1, 2, 6      # 4 and 5 are the Twin Archivists
 
@@ -45,6 +51,9 @@ class Guardian:
     round_hook: Callable | None = None
     world: Callable | None = None                # (seed) -> a world of its own, e.g. the Twins' second body
     extra_foe_ids: tuple = ()                    # more foe rows that join the fight (the second twin)
+
+    setup: Callable | None = None
+    also_teaches: frozenset[str] = frozenset()
 
 
 def _slime_costs(conn, foe_id: int = SLIME_ID) -> dict[str, int]:
@@ -118,9 +127,36 @@ def baseline_brain(key: str, conn) -> RandomBrain:
             return RandomBrain(partial(knight_legal_intents, costs=_knight_costs(conn)))
         case "lich":
             return RandomBrain(partial(lich_legal_intents, costs=_lich_costs(conn)))
+        case "count":
+            return RandomBrain(count_ai.count_legal_intents)
+        case "null":
+            return RandomBrain(null_ai.null_legal_intents)
         case _:
             raise ValueError(f"no baseline for guardian {key!r}")
 
+
+def _costs(conn, foe_id: int, spells: dict[str, str], defaults: dict[str, int]) -> dict[str, int]:
+    costs = dict(defaults)
+    for action, spell in spells.items():
+        row = conn.execute("SELECT mp_cost FROM foe_spells WHERE foe_id = ? AND name = ?",
+                           (foe_id, spell)).fetchone()
+        if row:
+            costs[action] = row[0]
+    return costs
+
+
+def _count_brain(conn) -> count_ai.CountBrain:
+    return count_ai.CountBrain(_costs(conn, count_ai.COUNT_ID, count_ai.ACTION_SPELLS,
+                                      count_ai.DEFAULT_COSTS))
+
+
+def _null_brain(conn) -> null_ai.NullBrain:
+    return null_ai.NullBrain(_costs(conn, null_ai.NULL_ID, null_ai.ACTION_SPELLS,
+                                    null_ai.DEFAULT_COSTS))
+
+
+COUNT_ADA_RUNES = frozenset({"LIMIT", "WHERE", "ORDER BY", "JOIN"})
+NULL_ADA_RUNES = COUNT_ADA_RUNES | {"GROUP BY", "HAVING", "DISTINCT", "SUBQUERY"}
 
 GUARDIANS = {
     "slime": Guardian("slime", SLIME_ID, 1, frozenset(SLIME_RUNES), SLIME_SIGNATURE,
@@ -132,15 +168,21 @@ GUARDIANS = {
     "twins": Guardian("twins", 4, 4, frozenset(TWIN_RUNES), TWIN_SIGNATURE,
                       frozenset({"LIMIT", "WHERE", "ORDER BY"}), render_archivists,
                       _pair_brain, world=make_pair, extra_foe_ids=(5,)),
-    # The Nested Lich is the last fight: Ada is level 5 and already knows JOIN from the twins.
+    # The Nested Lich: Ada is level 5 and already knows JOIN from the twins.
     "lich": Guardian("lich", LICH_ID, 5, frozenset(LICH_RUNES), LICH_SIGNATURE,
                      frozenset({"LIMIT", "WHERE", "ORDER BY", "JOIN"}), render_lich, _lich_brain,
                      round_hook=shift_shell),
     # The tutorial
     "dummy": Guardian("dummy", 3, 1, frozenset(), "", frozenset(), render_dummy,
                       lambda conn: DummyBrain()),
+    "count": Guardian("count", count_ai.COUNT_ID, 4, frozenset(COUNT_RUNES), COUNT_SIGNATURE,
+                      COUNT_ADA_RUNES, render_count, _count_brain, setup=specials.setup_count,
+                      also_teaches=COUNT_ALSO_TEACHES),
+    "null": Guardian("null", null_ai.NULL_ID, 5, frozenset(NULL_RUNES), NULL_SIGNATURE,
+                     NULL_ADA_RUNES, render_null, _null_brain, setup=specials.setup_null,
+                     also_teaches=NULL_ALSO_TEACHES),
 }
-ORDER = ["slime", "knight", "twins", "lich"]                 # the story's fights; the dummy is not one of them
+ORDER = ["slime", "knight", "twins", "count", "lich", "null"]    # the story's fights; the dummy is not one of them
 
 
 def next_guardian(key: str) -> str | None:

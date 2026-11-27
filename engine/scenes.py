@@ -16,6 +16,7 @@ sounds, F1; results.
 from __future__ import annotations
 
 import json
+import math
 import random
 import re
 from dataclasses import dataclass
@@ -23,19 +24,20 @@ from typing import Callable
 
 import pygame
 
-from engine import fx, render, scenery
+from engine import boss_art, fx, render, scenery
 from engine.audio import Audio, Silent, pick_track
 from engine.grimoire import LEFT_PAGE, Grimoire, draw_foe_book, wrap
 from engine.guide import Guide
 from engine.sprites import draw_ada
 from engine.textinput import (KEYWORD_WORDS, QueryEditor, layout, locked_words,
                               schema_tables, schema_words)
-from ai import steering
+from ai import steering, swarm
 from ai.roster import GUARDIANS, ORDER, next_guardian
 from magic.battle import Battle
 from magic.cast import SCRY_PER_TURN, CastReport, effect_word
 from magic.db import DATA_DIR
 from magic.guard import Miscast
+from magic import specials
 
 
 def _last_word(text: str) -> str:
@@ -85,6 +87,7 @@ class Game:
         # tutorial; the default here stays "slime" so a bare Game() is the classic slice.
         self.start = start
         self.runes: set[str] = set()      # runes Ada keeps after each victory
+        self.history: list[tuple[str, ...]] = []
         self.screen = screen              # optional: only used for screen shake
         self.audio = audio if audio is not None else Silent()
         self.seed = seed
@@ -203,6 +206,8 @@ TITLE_DOT = 3                     # big titles: each dot of a 5x7 letter is a 3x
 
 def next_scene(game: "Game", key: str) -> Scene:
     """The scene a story beat leads to: the tutorial, or a guardian's battle."""
+    if key == "end":
+        return TitleScene(game)
     if key == "tutorial":
         # Imported here: the tutorial scene is built on BattleScene, defined in this module.
         from engine.tutorial_scene import TutorialScene
@@ -262,6 +267,7 @@ class DialogueScene(Scene):
         self.drowsy = 0.0
         self.book_born: int | None = None
         self.void_since = 0
+        self.dawn_since = 0
         self.line_started = 2 * self.FADE_MS
         self._start_line()
 
@@ -279,6 +285,8 @@ class DialogueScene(Scene):
             self.line_started = self.time + 2 * self.FADE_MS
             if scene == "void":
                 self.void_since = self.time + self.FADE_MS
+            if scene == "dawn" and not self.dawn_since:
+                self.dawn_since = self.time + self.FADE_MS
         if self.line.get("book") and self.book_born is None:
             self.book_born = self.line_started
         if self.line.get("sound"):
@@ -309,11 +317,29 @@ class DialogueScene(Scene):
     # ------------------------------------------------------------ drawing
 
     def _draw_backdrop(self, canvas, name: str) -> None:
-        if name == "office":
+        if name == "office" and self.line.get("done"):
+            gone = self.time - self.line_started
+            bar = 0.99 if gone < 1800 else 1.0
+            scenery.draw_office(canvas, self.time, 3, bar)
+            if bar >= 1.0 and (self.time // 500) % 2 == 0:
+                f = render.font()
+                f.draw(canvas, "QUERY COMPLETE", (241 - f.width("QUERY COMPLETE") // 2, 36),
+                       render.MINT, shadow=render.INK)
+        elif name == "office":
             progress = 0.95 + 0.04 * min(1.0, self.drowsy / 3)     # it stops at 99%
             scenery.draw_office(canvas, self.time, self.drowsy, progress)
         elif name == "void":
             scenery.draw_void(canvas, self.time - self.void_since)
+        elif name == "theend":
+            boss_art.draw_the_end(canvas, self.time)
+        elif name == "dawn":
+            boss_art.draw_dawn(canvas, self.time - self.dawn_since, ground_y=110)
+            draw_ada(canvas, ADA_STANDING)
+            if self.line.get("book"):
+                speaking = (self.line["speaker"] == "Grimoire"
+                            and self._shown_chars() < len(self.line["text"]))
+                scenery.draw_book(canvas, (130, 64), self.time, 10000, speaking,
+                                  shadow=render.DUSK)
         elif name == "archive":
             from engine.twin_scene import draw_archive, draw_twin
             draw_archive(canvas, self.time, ground_y=110)
@@ -326,11 +352,15 @@ class DialogueScene(Scene):
             if self.line.get("twins"):
                 draw_twin(canvas, (230, 88), self.time, False, False, "quill", False, "Fire")
                 draw_twin(canvas, (276, 94), self.time, False, False, "ink", False, "Tide")
-        elif name in ("glade", "keep", "crypt"):
+        elif name in ("glade", "keep", "crypt", "barracks", "nullvoid"):
             if name == "glade":
                 draw_backdrop(canvas, ground_y=110)
             elif name == "crypt":
                 scenery.draw_crypt(canvas, self.time, ground_y=110)
+            elif name == "barracks":
+                boss_art.draw_barracks(canvas, self.time, ground_y=110)
+            elif name == "nullvoid":
+                boss_art.draw_null_void(canvas, self.time, ground_y=110)
             else:
                 scenery.draw_keep(canvas, self.time, ground_y=110)
             draw_ada(canvas, ADA_STANDING)            # full length, in front of the book
@@ -347,6 +377,16 @@ class DialogueScene(Scene):
                 scenery.draw_knight(canvas, (252, 92), self.time, False, False, True, False)
             if self.line.get("lich"):
                 scenery.draw_lich(canvas, (252, 88), self.time, False, False, True, "Shadow", 0)
+            if self.line.get("count"):
+                for i in range(6):
+                    angle = self.time / 600 + i * 1.05
+                    boss_art.draw_bat(canvas, (252 + math.cos(angle) * 26,
+                                               80 + math.sin(angle) * 9), self.time, i)
+                boss_art.draw_count(canvas, (252, 92), self.time, False, False, True, False)
+            if self.line.get("null"):
+                boss_art.draw_null(canvas, (252, 92), self.time, False, False, None, True)
+            if self.line.get("null_gone"):
+                boss_art.draw_null_end(canvas, (252, 92), max(0, self.time - self.line_started))
         else:
             canvas.fill(render.INK)
 
@@ -407,7 +447,7 @@ ADA_AT = (24, 58)                                   # where bolts and numbers st
 ADA_FEET = (42, 100)                                # battle: on the grass, above the Grimoire
 ADA_STANDING = (60, 114)                            # story scenes: standing on the grass
 HOME = {"slime": (250, 50), "knight": (252, 46), "lich": (250, 42), "dummy": (266, 54),
-        "twins": (256, 40)}   # each foe's post
+        "twins": (256, 40), "count": (262, 38), "null": (252, 40)}   # each foe's post
 FRONT = (182, 56)                                   # the striking spot, closer to Ada
 ARENA = pygame.Rect(176, 36, 122, 30)               # where a guardian may walk (clear of panels)
 ADA_BODY = (ADA_AT[0] + 18, ADA_AT[1] + 22)
@@ -424,7 +464,8 @@ class BattleScene(Scene):
         self.key = guardian
         runes = set(game.runes) | set(GUARDIANS[guardian].ada_runes)
         # A scene may be handed its battle (the tutorial runs its own); otherwise a new one.
-        self.battle = battle or Battle(seed=game.seed, guardian=guardian, ada_runes=runes)
+        self.battle = battle or Battle(seed=game.seed, guardian=guardian, ada_runes=runes,
+                                       history=getattr(game, "history", None))
         # The guardian's body on screen, steered towards whatever its brain orders.
         home = steering.Vec(*HOME[guardian])
         self.body = steering.Kinematic(home, max_speed=75 if guardian == "knight" else 55)
@@ -468,7 +509,8 @@ class BattleScene(Scene):
         self.table_rows: list[tuple[pygame.Rect, str]] = []   # clickable table names
         self.schema = [(t, [r[1] for r in conn.execute(f"PRAGMA table_info({t})")])
                        for t in schema_tables(conn) if t != "relics"]
-        self.say(game.dialogue["battle_tip"], 2500)
+        self.flock = swarm.Flock()
+        self.say(game.dialogue.get(f"{guardian}_tip", game.dialogue["battle_tip"]), 2500)
         self.phase = "input" if self.battle.whose_turn == "ada" else "wait"
 
     def enter(self):
@@ -507,7 +549,19 @@ class BattleScene(Scene):
         self.beats.append(Beat(text, ms, effect, sounds))
 
     def side_of(self, name: str) -> str:
-        return "ada" if name == self.battle.state.ada.name else "foe"
+        if name == self.battle.state.ada.name:
+            return "ada"
+        state = self.battle.state
+        if any(name in (m.name, m.squad) for m in state.minions) or name in specials.SQUAD_NAMES:
+            return "minion"
+        return "foe"
+
+    def swarm_xy(self, name: str) -> tuple[int, int]:
+        bats = [b for b in self.flock.bats.values() if name in (b.name, b.squad)]
+        if not bats:
+            return self.foe_xy()
+        return (render.snap(sum(b.body.position.x for b in bats) / len(bats)),
+                render.snap(sum(b.body.position.y for b in bats) / len(bats)))
 
     def _element_of(self, spell: str) -> str | None:
         """A spell's element, read from the battle tables, to colour its bolt."""
@@ -518,9 +572,17 @@ class BattleScene(Scene):
             self._elements[spell] = row[0] if row else None
         return self._elements[spell]
 
-    def _hit(self, side: str, damage: int, crit: bool, spell: str = ""):
+    def _hit(self, side: str, damage: int, crit: bool, spell: str = "", target: str = ""):
         def effect():
             ada_hand = (ADA_AT[0] + 22, ADA_AT[1] + 2)
+            if side == "minion":
+                spot = self.swarm_xy(target)
+                self.fx.bolt(ada_hand, spot, render.ELEMENT_COLOURS.get(self._element_of(spell),
+                                                                        render.LILAC))
+                self.fx.burst(*spot, count=8, speed=50)
+                self.popups.append(Popup(str(damage), (spot[0], spot[1] - 10),
+                                         render.GOLD if crit else render.WHITE))
+                return
             foe = self.foe_xy()
             start, end = (ada_hand, foe) if side == "foe" else (foe, ada_hand)
             self.fx.bolt(start, end, render.ELEMENT_COLOURS.get(self._element_of(spell),
@@ -565,7 +627,12 @@ class BattleScene(Scene):
                 _, _, _, spell, target, dmg, crit, mult = event
                 words = effect_word(mult)
                 text = f"{spell}: {dmg}" + (" CRIT!" if crit else "") + (f" {words}!" if words else "")
-                self.say(text, 650, self._hit(self.side_of(target), dmg, crit, spell),
+                side = self.side_of(target)
+                if side == "minion":
+                    effect = self._hit(side, dmg, crit, spell, target)
+                else:
+                    effect = self._hit(side, dmg, crit, spell)
+                self.say(text, 650, effect,
                          "crit" if crit else "hit", *(("hp_down",) if dmg else ()))
             elif kind in ("heal", "item"):
                 side = self.side_of(event[3])
@@ -608,6 +675,8 @@ class BattleScene(Scene):
                 self.say(f"{event[1].split()[-1]} is EXHAUSTED!", 800)
             elif kind == "faint":
                 self.say(f"{event[1]} faints!", 1000, None, "faint")
+            elif kind == "say":
+                self.say(event[1], 900, None, *(event[2:3] or ("cast",)))
             elif kind == "scry":
                 self.say("A free look." if not event[2] else "Nothing castable: turn spent.", 600)
 
@@ -668,13 +737,15 @@ class BattleScene(Scene):
         if turn.movement is not None:
             self.order = turn.movement                 # steer as the brain planned
         name = self.battle.state.foe.name.split()[-1]
+        if turn.reasoning.get("says"):
+            self.say(f'{name}: "{turn.reasoning["says"]}"', 1500)
         self.say(f"{name} casts!", 650, None, "scry" if turn.report.scry else "cast")
         self.narrate(turn.report)
         if turn.invitation:
             rune = turn.invitation
 
             def learn():
-                self.editor.unlocked.add(rune)
+                self.editor.unlocked |= {rune} | set(self.battle.state.ada.runes)
                 self.glow = (rune, self.time)
             self.say(f"{rune} glows in {name}'s book!", 1200, learn, "invitation")
             self.say(f"Ada copies the rune: {rune}", 1200)
@@ -851,8 +922,27 @@ class BattleScene(Scene):
             for sound in self.beat.sounds:
                 self.game.audio.play(sound)
 
+    def _biting(self) -> bool:
+        return getattr(self.battle.brain, "swarm_order", "hover") == "bite" and self.phase != "input"
+
+    def _anchors(self) -> dict:
+        squads = sorted(specials.squads(self.battle.state))
+        return swarm.squad_posts(squads, steering.Vec(*self.foe_xy()), self._biting(),
+                                 steering.Vec(*ADA_BODY))
+
+    def _update_flock(self, dt: int) -> None:
+        state = self.battle.state
+        if not state.minions and not self.flock.bats:
+            return
+        posts = self._anchors()
+        self.flock.sync([(b.name, b.squad) for b in specials.living_bats(state)], posts,
+                        self.game.vfx)
+        self.flock.update(posts, dt / 1000, self.time, self._biting(),
+                          steering.Vec(*self.foe_xy()))
+
     def _update_body(self, dt: int) -> None:
         """Steering: the brain's Movement order becomes an acceleration every frame."""
+        self._update_flock(dt)
         accel = steering.steer(self.order, self.body, self.places, self.wander, self.game.vfx)
         self.body.integrate(accel, dt / 1000)
         p = self.body.position
@@ -889,6 +979,20 @@ class BattleScene(Scene):
             scenery.draw_crypt(canvas, self.time)
             scenery.draw_lich(canvas, self.foe_xy(), self.time, flash, fainted,
                               self.shown_relevance, self.shown_element, state.foe.ward)
+        elif self.key == "count":
+            boss_art.draw_barracks(canvas, self.time)
+            for bat in self.flock.bats.values():
+                p = bat.body.position
+                boss_art.draw_bat(canvas, (p.x, p.y), self.time, bat.phase, state=bat.state)
+            boss_art.draw_count(canvas, self.foe_xy(), self.time, flash, fainted,
+                                bool(specials.quorum(state)), self.body.velocity.length() > 5)
+            boss_art.draw_squad_labels(canvas, {k: len(v) for k, v in specials.squads(state).items()},
+                                       set(specials.quorum(state)))
+        elif self.key == "null":
+            boss_art.draw_null_void(canvas, self.time)
+            boss_art.draw_null(canvas, self.foe_xy(), self.time, flash, fainted,
+                               state.foe.element, bool(state.foe.status.get("veil")),
+                               getattr(self.battle.brain, "mode", "listening"))
         else:
             draw_backdrop(canvas)
             home = HOME[self.key]
@@ -1000,6 +1104,19 @@ class BattleScene(Scene):
         if self.shown_relevance:
             f.draw(canvas, "WARD OF RELEVANCE", (box.right + 4, box.y + 11), render.AQUA,
                    shadow=render.INK)
+        state = self.battle.state
+        held = specials.quorum(state) if state.minions else []
+        if held:
+            f.draw(canvas, f"QUORUM: {len(held)} SQUAD{'S' if len(held) > 1 else ''}",
+                   (box.right + 4, box.y + 11), render.GOLD, shadow=render.INK)
+        elif self.key == "count":
+            f.draw(canvas, "QUORUM BROKEN", (box.right + 4, box.y + 11), render.RED,
+                   shadow=render.INK)
+        if foe.status.get("veil"):
+            f.draw(canvas, "VEIL OF DOUBT", (box.right + 4, box.y + 11), render.LILAC,
+                   shadow=render.INK)
+        if foe.status.get("hidden_hp"):
+            f.draw(canvas, "hp = NULL", (box.x + 30, box.y + 3), render.VIOLET)
 
     def _draw_ada_panel(self, canvas):
         f, ada = render.font(), self.battle.state.ada
@@ -1017,6 +1134,8 @@ class BattleScene(Scene):
                      render.SKY)
         f.draw(canvas, f"{mp}/{ada.max_mp}", (box.x + 88, box.y + 18), render.NAVY)
         runes = "RUNES: " + (", ".join(sorted(ada.runes)) or "none")
+        if f.width(runes) > render.LOGICAL_W - box.x - 2:
+            runes = f"RUNES: {len(ada.runes)} known (F3 guide)"
         f.draw(canvas, runes, (box.x, box.y - 8), render.GOLD, shadow=render.INK)
         if ada.exhausted:
             f.draw(canvas, "EXHAUSTED", (box.right - f.width("EXHAUSTED"), box.y - 8),
@@ -1035,6 +1154,7 @@ class BattleScene(Scene):
             lines.append("The guardian has not decided anything yet.")
         lines.append(f"steering now: {self.order.behaviour} {self.order.target}   "
                      f"book: {len(battle.state.foe_book)} queries")
+        lines = lines[:24]
         render.cover(canvas, pygame.Rect(4, 4, 312, 8 + len(lines) * render.LINE_H),
                      (*render.INK, 235))
         for i, line in enumerate(lines):
@@ -1058,6 +1178,8 @@ class ResultScene(Scene):
         self.rune = battle.guardian.signature
         self.codex = next((sql for sql in battle.state.foe_book if self.rune in sql), None)
         self.next = next_guardian(self.key) if self.won else self.key
+        if hasattr(game, "history"):
+            game.history.extend(c.runes for c in battle.state.ada_casts if not c.scry)
 
     def enter(self):
         self.game.audio.play("victory" if self.won else "defeat")
@@ -1075,7 +1197,10 @@ class ResultScene(Scene):
             # before the Invitation.
             self.game.runes |= self.battle.state.ada.runes | {self.rune}
             if self.next is None:                    # the end of this build
-                self.game.switch(TitleScene(self.game))
+                if self.key == "null" and "ending" in self.game.dialogue:
+                    self.game.switch(DialogueScene(self.game, "ending", "end"))
+                else:
+                    self.game.switch(TitleScene(self.game))
             else:
                 self.game.switch(DialogueScene(self.game, f"{self.next}_intro", self.next))
 
@@ -1107,7 +1232,9 @@ class ResultScene(Scene):
                    (box.x + 4, box.y + 3), render.VIOLET)
             for i, line in enumerate(wrap(self.codex, 62)[:2]):
                 f.draw(canvas, line, (box.x + 4, box.y + 12 + i * render.LINE_H), render.INK)
-        if self.won and self.next is None:
+        if self.won and self.next is None and self.key == "null":
+            prompt = "ENTER continue    ESC quit"
+        elif self.won and self.next is None:
             end = self.game.dialogue.get("end_of_slice", "")
             f.draw(canvas, end, ((320 - f.width(end)) // 2, 156), render.BUTTER)
             prompt = "ENTER title    ESC quit"

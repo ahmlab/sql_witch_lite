@@ -13,7 +13,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
-from magic import guard, rules
+from magic import guard, rules, specials
 from magic.rules import BattleState, Combatant
 
 # Tuning constants from design doc 3.3. Change them here, never inline.
@@ -199,7 +199,9 @@ def _default_target(kind: str, caster: str) -> str:
     # A restore reaches for the caster's partner (the Twin Archivists).
     if kind == "restore":
         return "twin" if caster == "foe" else caster
-    return caster if kind in SELF_KINDS else ("foe" if caster == "ada" else "ada")
+    if kind in SELF_KINDS or kind in specials.SELF_KINDS:
+        return caster
+    return "foe" if caster == "ada" else "ada"
 
 
 def _cost(plan: _Row) -> int:
@@ -207,8 +209,17 @@ def _cost(plan: _Row) -> int:
 
 
 def _apply_spell(plan: _Row, me: Combatant, target: Combatant, chart: dict,
-                 rng: random.Random, report: CastReport) -> None:
+                 rng: random.Random, report: CastReport, state: BattleState | None = None) -> None:
     spell = plan.spell
+    reason = specials.blocked(state, target, report) if state is not None else None
+    if reason and spell.kind in ("attack", "area"):
+        report.casts.append(Cast(plan.index, spell.name, target.name, spell.kind,
+                                 element=spell.element, deflected=True))
+        report.events.append(specials.block_event(spell.name, target, reason))
+        return
+    if spell.kind in specials.KINDS:
+        specials.apply(spell, plan.index, me, target, state, chart, rng, report, Cast)
+        return
     if spell.kind in ("attack", "area"):
         hit = rules.damage(spell.power, spell.element, target, chart, rng)
         rules.apply_hit(target, hit)
@@ -284,11 +295,13 @@ def resolve(conn, state: BattleState, sql: str, caster: str, rng: random.Random,
                         runes=runes, mp_before=me.mp)
     if caster == "foe":
         state.foe_book.append(sql)
+    specials.begin_cast(state, caster)
 
     book, items = spellbook(conn, state, caster), satchel(conn, caster)
     names = {state.ada.name: "ada", state.foe.name: "foe"}
     if state.twin is not None:
         names[state.twin.name] = "twin"
+    names.update(specials.extra_names(state))
     plans = [p for i, row in enumerate(rows) if (p := _read_row(i, row, book, items, names))]
 
     if not plans:
@@ -336,10 +349,18 @@ def _cast(conn, state, caster, plans, page, chart, rng, report) -> None:
             _fizzle(report, plan, "empty", paid)
         elif plan.item:
             _use_item(conn, plan, state.side(target_side), report)
+        elif specials.is_swarm_target(target_side):
+            bats = specials.swarm_targets(state, target_side, plan.spell.kind)
+            if bats:
+                specials.hit_swarm(plan.index, plan.spell, me, bats,
+                                   target_side.partition(":")[2], chart, rng, report, Cast)
+            else:
+                _fizzle(report, plan, "gone", paid)
         else:
-            _apply_spell(plan, me, state.side(target_side), chart, rng, report)
+            _apply_spell(plan, me, state.side(target_side), chart, rng, report, state)
         if readable:
             seen.add(pair)
+    specials.end_cast(state, report)
 
     report.events.append(("mp", me.name, report.mp_before, me.mp))
     if report.overflow:
@@ -376,6 +397,7 @@ def sync_state(conn, state: BattleState) -> None:
                  (foe.hp, foe.mp, state.foe_id))
     if state.pair is not None:
         state.pair.sync(conn, state)
+    specials.sync(conn, state)
     conn.commit()
 
 

@@ -42,6 +42,8 @@ class Combatant:
     # Sir Wherewell's Ward of Relevance (design doc 5.4): while it is up, only super-effective
     # spells land, and the first one that does shatters it.
     relevance: bool = False
+    squad: str | None = None
+    status: dict = field(default_factory=dict)
 
     @property
     def hp_ratio(self) -> float:
@@ -80,6 +82,7 @@ class BattleState:
     # world object that re-rolls their weaknesses and moves their bodies. None for every other fight.
     twin: Combatant | None = None
     pair: object | None = None
+    minions: list[Combatant] = field(default_factory=list)
 
     def side(self, who: str) -> Combatant:
         """'ada', 'foe' or 'twin' -> the combatant. Callers pass the side, never the name."""

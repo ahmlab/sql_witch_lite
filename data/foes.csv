@@ -5,3 +5,5 @@ id,name,hp,max_hp,mp,max_mp,element,weakness,speed
 4,Archivist Quill,90,90,40,40,Nature,Fire,4
 5,Archivist Ink,90,90,40,40,Tide,Storm,4
 6,Nested Lich,760,760,70,70,Shadow,Light,3
+10,Count Aggregor,240,240,40,40,Shadow,Light,5
+20,NULL,,650,50,50,,,6
